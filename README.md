@@ -55,10 +55,46 @@ The core of the forward pass begins with the convolutional operation. As a filte
 
 $$z_{i,j} = \sum_{m} \sum_{n} I_{i+m, j+n} \cdot K_{m,n} + b$$
 
-This calculation produces a feature map that highlights specific visual characteristics, such as the density of lung tissue or the borders of the ribcage. By using multiple filters, the forward pass creates several different versions of the image, each emphasizing a different architectural feature.
+To understand how the computer actually processes the image, the terms can be broken down as follows:
+
+1. **The Moving Window ($I_{i+m, j+n}$):** Imagine a $3 \times 3$ square sliding over a $200 \times 200$ image. The $(i, j)$ is the current location of the square. The $(m, n)$ iterates through the 9 pixels inside that square.
+
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="./images/kernel_00.png" width="200px" alt="Large creatures"/><br />
+      <p><b>Fig. 4.</b> Moving window when i = 0, j = 0.</p>
+    </td>
+    <td align="center">
+      <img src="./images/kernel_01.png" width="196px" alt="Proper creatures"/><br />
+      <p><b>Fig. 5.</b> Moving window when i = 0, j = 1.</p>
+    </td>
+  </tr>
+</table>
+
+2. **The Weighting ($K_{m,n}$):** Every pixel in that $3 \times 3$ window is multiplied by a "weight." If the weights are set to find edges, the math will produce a high number only if an edge is present. This is the core of how the AI "recognizes" things.
+
+<div align="center">
+    <img src="images/window_weights.png" width="700">
+    <p align="center"><strong>Fig. 6.</strong> Sobel edge-detector kernel: positive weights detect brightness, negative weights detect darkness, zeros are ignored.<p>
+</div>
+
+<div align="center">
+    <img src="images/element_wise_multiplication.png" width="600">
+    <p align="center"><strong>Fig. 7.</strong> Element wise multiplication.<p>
+</div>
+
+3. **Feature Summation ($\sum \sum$):** The nine individual products from the element-wise multiplication are summed into a single scalar value. This "squashing" process reduces the $3 \times 3$ local neighborhood into a single numerical representation, indicating the presence or intensity of a specific visual feature (such as an edge or texture) at that spatial location.
+
+4. **The Bias ($b$):** We add a small constant. Think of this as the "Threshold of Concern." If the sum is slightly positive but not enough to be pneumonia, a negative bias can "zero it out."
 
 ### 3.2 Non-Linearity through ReLU
 Once the feature maps are generated, they are passed through a Rectified Linear Unit (ReLU) activation function. The primary purpose of this step is to introduce non-linearity, which allows the network to learn relationships that aren't just simple linear combinations of pixels. The ReLU function is defined as $f(z) = \max(0, z)$, meaning it allows positive signals to pass through unchanged while effectively "turning off" any negative values. This helps the network focus on the most relevant features and prevents the mathematical instability that can occur in deeper networks.
+
+<div align="center">
+    <img src="images/feature_map_relu.png" width="700">
+    <p align="center"><strong>Fig. 8.</strong> Feature map passing through ReLU activation function.<p>
+</div>
 
 ### 3.3 Spatial Downsampling with Max Pooling
 Following activation, the feature maps undergo Max Pooling to reduce their spatial dimensions. The network slides a $2 \times 2$ window across the feature map and selects only the maximum value within that window to move forward to the next layer. This operation is critical for maintaining "translation invariance," which means the network can still recognize a pattern even if it is shifted slightly in the image. Furthermore, by shrinking the height and width of the data by half, the pooling step significantly reduces the computational load for the subsequent layers without losing the most prominent features.

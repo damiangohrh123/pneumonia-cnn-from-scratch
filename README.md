@@ -28,7 +28,7 @@ The Convolutional Layer is the primary engine of the network. It uses a set of l
 
 <div align="center">
     <img src="images/sliding_window.png" width="600">
-    <p align="center"><small><strong>Fig. 1.</strong> Sliding window (kernel) convolution operation and feature map generation. [1]</small><p>
+    <p align="center"><strong>Fig. 1.</strong> Sliding window (kernel) convolution operation and feature map generation. [1]<p>
 </div>
 
 ### 2.3 Dimensionality Reduction via Pooling
@@ -36,7 +36,7 @@ To prevent the network from becoming too computationally heavy and to make it mo
 
 <div align="center">
     <img src="images/max_pooling_example.png" width="400">
-    <p align="center"><small><strong>Fig. 2.</strong> Max-pooling operation reducing the spatial resolution of a feature map by selecting maximum local values [1].</small></p>
+    <p align="center"><strong>Fig. 2.</strong> Max-pooling operation reducing the spatial resolution of a feature map by selecting maximum local values [1].</p>
 </div>
 
 ### 2.4 The Fully Connected Head and Classification
@@ -44,7 +44,7 @@ Once the convolutional and pooling layers have extracted the most important visu
 
 <div align="center">
     <img src="images/system_architecture.png" width="800">
-    <p align="center"><small><strong>Fig. 3.</strong> Complete CNN architecture showing the transition from 3D feature maps to a flattened 1D vector for classification. [2]</small><p>
+    <p align="center"><strong>Fig. 3.</strong> Complete CNN architecture showing the transition from 3D feature maps to a flattened 1D vector for classification. [2]<p>
 </div>
 
 ## References

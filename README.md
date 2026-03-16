@@ -106,16 +106,44 @@ $$\sigma(z) = \frac{1}{1 + e^{-z}}$$
 
 This function maps any input value into a strict range between 0 and 1, which represents the probability of the presence of pneumonia. A value closer to 1 indicate the network is confident in a positive diagnosis, while a value closer to 0 indicates a healthy scan.
 
+## 4. Loss Function
+The loss function is the mathematical tool the network uses to measure the gap between its predictions and the actual truth. It provides a single scalar value that represents the total error of the model for a given set of images. The objective of the entire training process is to minimize this number through optimization. In a classification task like pneumonia detection, the loss function does not just look at whether the network was right or wrong, but also evaluates how confident it was in its answer, punishing confident but incorrect predictions more severely.
 
+### 4.1 Binary Cross-Entropy (BCE)
+For binary classification, the network utilizes the Binary Cross-Entropy loss function. This function is specifically designed to work with the Sigmoid output from the final layer, which provides a probability between 0 and 1. The BCE function compares this probability to the actual label, where 0 represents a healthy scan and 1 represents a pneumonia scan. If the network predicts a high probability for a positive case and the label is actually positive, the loss is low. However, if the network is very confident about the wrong answer—for example, predicting a $0.99$ probability for pneumonia when the patient is actually healthy—the BCE function produces an extremely high loss value. This high error signal is what triggers significant adjustments to the weights during backpropagation.The mathematical formula for the loss is calculated as:
 
+$$
+L = -[y \log(\hat{y}) + (1 - y) \log(1 - \hat{y})]
+$$
 
+* $y$ (The True Label): This is the ground truth, which is either 0 or 1.
+* $\hat{y}$ (The Prediction): This is the probability output by the Sigmoid function.
+* $\log(\hat{y})$: The logarithm ensures that as the prediction gets further from the truth, the loss increases exponentially.
 
+To understand why the formula looks like $L = -[y \log(\hat{y}) + (1 - y) \log(1 - \hat{y})]$, we have to look at the two possible scenarios for a patient:
+
+* **Scenario 1: The Positive Case ($y = 1$):**  
+When the chest X-ray contains pneumonia, the second term $(1 - y)$ becomes zero. This effectively "mutes" the healthy part of the equation, leaving only $L = -\log(\hat{y})$. The network is now solely focused on how close the prediction $\hat{y}$ is to $1$.
+
+* **Scenario 2: The Negative Case ($y = 0$):**  
+When the scan is healthy, the first term $y$ becomes zero. This mutes the pneumonia part of the equation, leaving $L = -\log(1 - \hat{y})$. The network now only evaluates how close the prediction is to $0$.
+
+### 4.2 Handling Class Imbalance and Medical Priority
+A significant challenge in medical imaging is that datasets are often imbalanced, frequently containing far more healthy scans than pneumonia scans. If the loss function treats every error the same, the model might learn to simply guess "healthy" every time to keep the total error low, which is dangerous in a clinical setting. To prevent this, a weighted version of the loss function can be implemented. By adding a penalty multiplier to the pneumonia class, the network is punished more for a False Negative (missing a sick patient) than for a False Positive (a false alarm).
+
+The standard BCE formula is modified by introducing a weight factor, $w_{pos}$, to the positive $(y=1)$ term:
+
+$$
+L = -[w_{pos} \cdot y \log(\hat{y}) + (1 - y) \log(1 - \hat{y})]
+$$
+
+In a hospital, a "False Alarm" results in an unnecessary follow-up test, but a "Missed Case" results in a patient sent home without treatment. If we set $w_{pos} = 5$, the "pain" or error signal sent to the network is five times stronger when it fails to identify a pneumonia scan. This forces the optimization process to prioritize the minority class, ensuring the model's "knowledge" is biased toward safety and detection.
 
 
 
 
 
 ## References
-[1] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Jan. 14, 2020. [Online]. Available: https://www.youtube.com/watch?v=HGwqe6z1phM.
+[1] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Jan. 14, 2020. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.
 
 [2] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.

@@ -177,13 +177,27 @@ Where:
 This routing ensures that only the features that actually influenced the network's decision are adjusted, while irrelevant pixels are ignored and their gradient is "masked" out.
 
 ### 5.3 Convolutional Gradients (Updating the Kernels)
-To find the gradient for a kernel ($K$), the network performs a new convolution-like operation. It takes the error signal (gradient) from the next layer and slides it across the original input image. This calculation reveals which parts of the $3 \times 3$ filter were responsible for the mistake.The gradient for the kernel is calculated as:
+The most critical part of the learning process is updating the convolutional filters ($K$). Unlike a standard dense layer where a weight is only responsible for one connection, a convolutional weight is reused across the entire image. Therefore, its gradient must be the sum of its performance at every single "stop" it made during the forward pass. To find the gradient for a specific weight within a $3 \times 3$ kernel, we use a double summation to accumulate error across the entire height and width of the feature map. Mathematically, the gradient for a kernel weight at position $(m, n)$ is:
 
 $$
-\frac{\partial L}{\partial K} = \sum \sum \frac{\partial L}{\partial Z} \cdot I
+\frac{\partial L}{\partial K_{m,n}} = \sum_{i=0}^{H-1} \sum_{j=0}^{W-1} \frac{\partial L}{\partial Z_{i,j}} \cdot I_{i+m, j+n}
 $$
 
-If a specific weight in a filter consistently leads to a high loss when scanning a pneumonia patch, the gradient will be large, and the weight will be shifted significantly during the optimization step.
+Where:
+* $\frac{\partial L}{\partial K_{m,n}}$: This is the "Result." it tells us how much we need to change one specific pixel inside our $3 \times 3$ filter (for example, the top-right corner).
+* $\sum_{i=0}^{H-1} \sum_{j=0}^{W-1}$: These are the spatial summations. They instruct the network to look at every row ($i$) and every column ($j$) of the output feature map.
+* $\frac{\partial L}{\partial Z_{i,j}}$: This is the Feature Map Error at a specific coordinate. It represents how much the network’s output at that exact spot contributed to the overall mistake.
+* $I_{i+m, j+n}$: This is the Original Input Pixel that the kernel weight was "looking at" during the forward pass. By using the indices $i+m$ and $j+n$, we align the error with the exact patch of the image that created it.
+
+This formula is effectively performing a cross-correlation. It checks for an overlap between the error and the input. If the error is high at a certain coordinate and the input pixel at that spot was also high (bright), the product will be large. This "blames" the filter weight for reacting too strongly to that feature.
+
+After the double summation is completed for all 9 weights in the kernel, we have a $3 \times 3$ gradient matrix, $\frac{\partial L}{\partial K}$. We then update the kernel using the learning rate ($\eta$):
+
+$$
+K_{new} = K_{old} - \eta \cdot \frac{\partial L}{\partial K}
+$$
+
+This "nudges" the filter. If the filter previously caused a "False Positive" by reacting to a rib bone, this update will decrease the weights responsible for that reaction, teaching the model to distinguish between bone and actual pneumonia indicators.
 
 ### 5.4 Passing Error to Previous Layers
 After the kernels are updated, the error signal must continue traveling backward to any earlier convolutional layers. This is done by taking the current error ($\frac{\partial L}{\partial Z}$) and convolving it with a flipped version of the kernel. This "full convolution" effectively redistributes the error back onto the original input dimensions. By the time this process is finished, every weight in every filter has a calculated gradient, allowing the model to update its entire "visual system" before the next training iteration begins.

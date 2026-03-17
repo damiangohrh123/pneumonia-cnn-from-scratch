@@ -99,6 +99,11 @@ Once the feature maps are generated, they are passed through a Rectified Linear 
 ### 3.3 Spatial Downsampling with Max Pooling
 Following activation, the feature maps undergo Max Pooling to reduce their spatial dimensions. The network slides a $2 \times 2$ window across the feature map and selects only the maximum value within that window to move forward to the next layer. This operation is critical for maintaining "translation invariance," which means the network can still recognize a pattern even if it is shifted slightly in the image. Furthermore, by shrinking the height and width of the data by half, the pooling step significantly reduces the computational load for the subsequent layers without losing the most prominent features.
 
+<div align="center">
+    <img src="images/max_pooling.png" width="500">
+    <p align="center"><strong>Fig. 9.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size.<p>
+</div>
+
 ### 3.4 Flattening and the Sigmoid Prediction
 The final stage of the forward pass involves converting the 3D feature volumes into a 1D vector through a process called flattening. This vector is then passed to a single output neuron in a fully connected layer. To convert the raw signal into a usable diagnosis, the network applies the Sigmoid activation function:
 
@@ -139,9 +144,49 @@ $$
 
 In a hospital, a "False Alarm" results in an unnecessary follow-up test, but a "Missed Case" results in a patient sent home without treatment. If we set $w_{pos} = 5$, the "pain" or error signal sent to the network is five times stronger when it fails to identify a pneumonia scan. This forces the optimization process to prioritize the minority class, ensuring the model's "knowledge" is biased toward safety and detection.
 
+## 5. Backpropagation
+Backpropagation is the process where the network learns from the error calculated by the loss function. It works by traveling backward from the output layer to the input image, using the chain rule to determine how much each individual weight and filter contributed to the final error. In a CNN, this is more complex than a standard network because the error has to be "un-pooled" and "un-convolved" to reach the earlier layers. By calculating these gradients, the network knows exactly how to nudge each parameter to perform better on the next scan.
 
+### 5.1 The Chain Rule and Gradient Flow
+To calculate how a specific weight ($w$) should be adjusted, the network uses the Chain Rule. This mathematical principle allows us to break down a complex relationship into a series of smaller, local "links." For a weight in the dense layer, the gradient is:
 
+$$
+\frac{\partial L}{\partial w} = \frac{\partial L}{\partial \hat{y}} \cdot \frac{\partial \hat{y}}{\partial z} \cdot \frac{\partial z}{\partial w}
+$$
 
+If we treat these derivatives like fractions, the intermediate terms ($\partial \hat{y}$ and $\partial z$) effectively cancel out, leaving us with the direct relationship between the Loss and the Weight ($\frac{\partial L}{\partial w}$). In practical terms, this means:
+
+* **The Error Signal:** $\frac{\partial L}{\partial \hat{y}}$ tells us the direction of the mistake.
+* **The Activation Slope:** $\frac{\partial \hat{y}}{\partial z}$ (the Sigmoid derivative) tells us how sensitive the output was to the input at that moment.
+* **The Input Contribution:** $\frac{\partial z}{\partial w}$ is the actual value of the pixel or neuron that passed through the weight.
+
+### 5.2 Backpropagating through Pooling: The "Winner" Mask
+When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to "pick the highest number" from a local window. Because there are no weights to adjust, the layer’s role in backpropagation is to act as a router for the error signal.
+
+During the forward pass, the network creates a mask, which is a temporary record that remembers the coordinates of the "winning" pixel in each $2 \times 2$ window. When the error signal travels backward, it only flows to the pixel that actually made it through the pooling stage. Since the other three pixels in the $2 \times 2$ window were discarded, they had zero impact on the final prediction, and therefore they receive zero gradient for the error. The gradient of the loss with respect to the input of the pooling layer ($I$) is defined by the following piecewise function:
+
+$$
+\frac{\partial L}{\partial I} = \begin{cases} \frac{\partial L}{\partial O} & \text{if } I = \text{max}(window) \\ 0 & \text{otherwise} \end{cases}
+$$
+
+Where:  
+* $\frac{\partial L}{\partial O}$: The incoming error signal from the next layer (the output of the pooling).
+* $I$: The individual pixel in the original feature map.
+* $\text{max}(window)$: The specific pixel that was selected as the maximum during the forward pass.
+
+This routing ensures that only the features that actually influenced the network's decision are adjusted, while irrelevant pixels are ignored and their gradient is "masked" out.
+
+### 5.3 Convolutional Gradients (Updating the Kernels)
+To find the gradient for a kernel ($K$), the network performs a new convolution-like operation. It takes the error signal (gradient) from the next layer and slides it across the original input image. This calculation reveals which parts of the $3 \times 3$ filter were responsible for the mistake.The gradient for the kernel is calculated as:
+
+$$
+\frac{\partial L}{\partial K} = \sum \sum \frac{\partial L}{\partial Z} \cdot I
+$$
+
+If a specific weight in a filter consistently leads to a high loss when scanning a pneumonia patch, the gradient will be large, and the weight will be shifted significantly during the optimization step.
+
+### 5.4 Passing Error to Previous Layers
+After the kernels are updated, the error signal must continue traveling backward to any earlier convolutional layers. This is done by taking the current error ($\frac{\partial L}{\partial Z}$) and convolving it with a flipped version of the kernel. This "full convolution" effectively redistributes the error back onto the original input dimensions. By the time this process is finished, every weight in every filter has a calculated gradient, allowing the model to update its entire "visual system" before the next training iteration begins.
 
 ## References
 [1] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Jan. 14, 2020. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.

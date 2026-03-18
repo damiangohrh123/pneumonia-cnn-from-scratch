@@ -61,7 +61,7 @@ Once the feature maps are generated, they are passed through a Rectified Linear 
 
 <div align="center">
     <img src="images/feature_map_relu.png" width="700">
-    <p align="center"><strong>Fig. 3.</strong> Feature map passing through ReLU activation function.<p>
+    <p align="center"><strong>Fig. 3.</strong> Feature map passing through ReLU activation function. [2]<p>
 </div>
 
 ### 3.3 Spatial Downsampling with Max Pooling
@@ -69,7 +69,7 @@ Following activation, the feature maps undergo Max Pooling to reduce their spati
 
 <div align="center">
     <img src="images/max_pooling.png" width="500">
-    <p align="center"><strong>Fig. 4.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size.<p>
+    <p align="center"><strong>Fig. 4.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size. [2]<p>
 </div>
 
 ### 3.4 Flattening and the Sigmoid Prediction

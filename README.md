@@ -26,25 +26,15 @@ The architecture begins with the Input Layer, which stores the raw pixel data. I
 ### 2.2 Feature Extraction through Convolutional Layers
 The Convolutional Layer is the primary engine of the network. It uses a set of learnable filters, also known as kernels, which are small matrices that slide across the input data. At every position, the filter performs a mathematical operation to see how well its own pattern matches the pixels in that specific spot. This process, illustrated in Fig. 1, allows the network to create "feature maps" that highlight where certain shapes, like edges or textures, are located. Because the same filter is used for the entire image, the network can recognize a pattern no matter where it appears, which makes it much more efficient than a standard fully connected layer.
 
-<div align="center">
-    <img src="images/sliding_window.png" width="600">
-    <p align="center"><strong>Fig. 1.</strong> Sliding window (kernel) convolution operation and feature map generation. [1]<p>
-</div>
-
 ### 2.3 Dimensionality Reduction via Pooling
 To prevent the network from becoming too computationally heavy and to make it more reliable, Pooling Layers are placed between convolutional stages. These layers serve to "downsample" the feature maps, effectively shrinking the height and width of the data. Max-Pooling is the most common version, where the layer looks at a small window of pixels and only passes the highest value to the next stage, as demonstrated in Fig. 2. This ignores the exact location of a feature in favor of its general presence, which helps the network handle images where the subject might be slightly tilted or shifted.
-
-<div align="center">
-    <img src="images/max_pooling_example.png" width="400">
-    <p align="center"><strong>Fig. 2.</strong> Max-pooling operation reducing the spatial resolution of a feature map by selecting maximum local values [1].</p>
-</div>
 
 ### 2.4 The Fully Connected Head and Classification
 Once the convolutional and pooling layers have extracted the most important visual information, the data must be converted into a format that can be used for a final decision. The 3D feature maps are "flattened" into a 1D vector and passed into a Fully Connected Layer. This part of the network acts like a standard classifier, looking at the entire collection of detected features to determine which category the image belongs to. In a binary system, a single output neuron with an activation function like Sigmoid is used to calculate the final probability of the target class.
 
 <div align="center">
     <img src="images/system_architecture.png" width="800">
-    <p align="center"><strong>Fig. 3.</strong> Complete CNN architecture showing the transition from 3D feature maps to a flattened 1D vector for classification. [2]<p>
+    <p align="center"><strong>Fig. 1.</strong> Complete CNN architecture showing the transition from 3D feature maps to a flattened 1D vector for classification. [1]<p>
 </div>
 
 ## 3. Forward Propagation
@@ -57,43 +47,21 @@ $$z_{i,j} = \sum_{m} \sum_{n} I_{i+m, j+n} \cdot K_{m,n} + b$$
 
 To understand how the computer actually processes the image, the terms can be broken down as follows:
 
-1. **The Moving Window ($I_{i+m, j+n}$):** Imagine a $3 \times 3$ square sliding over a $200 \times 200$ image. The $(i, j)$ is the current location of the square. The $(m, n)$ iterates through the 9 pixels inside that square.
-
-<table align="center">
-  <tr>
-    <td align="center">
-      <img src="./images/kernel_00.png" width="200px" alt="Large creatures"/><br />
-      <p><b>Fig. 4.</b> Moving window when i = 0, j = 0.</p>
-    </td>
-    <td align="center">
-      <img src="./images/kernel_01.png" width="196px" alt="Proper creatures"/><br />
-      <p><b>Fig. 5.</b> Moving window when i = 0, j = 1.</p>
-    </td>
-  </tr>
-</table>
-
-2. **The Weighting ($K_{m,n}$):** Every pixel in that $3 \times 3$ window is multiplied by a "weight." If the weights are set to find edges, the math will produce a high number only if an edge is present. This is the core of how the AI "recognizes" things.
+**The Input Image and the Kernel Weights ($I_{i+m, j+n} \cdot K_{m,n}$):** At each position $(i, j)$, a $3 \times 3$ window slides across the input image $I$, capturing a patch of pixel values $I_{i+m,j+n}$. Each pixel in this patch is multiplied by a corresponding weight $K_{m,n}$ from the kernel, which is a small $3 \times 3$ grid of learned values that determines which patterns the filter responds to. The double summation $\sum_m \sum_n$ then accumulates all nine products across the rows ($m$) and columns ($n$) of the kernel into a single scalar $z_{i,j}$.
 
 <div align="center">
-    <img src="images/window_weights.png" width="700">
-    <p align="center"><strong>Fig. 6.</strong> Sobel edge-detector kernel: positive weights detect brightness, negative weights detect darkness, zeros are ignored.<p>
+    <img src="images/sliding_window.png" width="700">
+    <p align="center"><strong>Fig. 2.</strong> The kernel slides across the input image, multiplying each pixel in the 3×3 patch by its corresponding weight​. The nine products are summed and a bias is added, producing one value in the feature map. Here, the products sum to 1 and a bias of −2 yields a final activation of −1. [2]<p>
 </div>
 
-<div align="center">
-    <img src="images/element_wise_multiplication.png" width="600">
-    <p align="center"><strong>Fig. 7.</strong> Element wise multiplication.<p>
-</div>
-
-3. **Feature Summation ($\sum \sum$):** The nine individual products from the element-wise multiplication are summed into a single scalar value. This "squashing" process reduces the $3 \times 3$ local neighborhood into a single numerical representation, indicating the presence or intensity of a specific visual feature (such as an edge or texture) at that spatial location.
-
-4. **The Bias ($b$):** We add a small constant. Think of this as the "Threshold of Concern." If the sum is slightly positive but not enough to be pneumonia, a negative bias can "zero it out."
+**The Bias ($b$):** A learned scalar constant $b$ is added to the weighted sum. This shifts the activation threshold, allowing the network to adjust how sensitive a filter is to a given feature independently of the input pixel values. In Fig. 2, a bias of $b = -2$ is added to the sum of $1$, yielding a final activation of $z_{i,j} = -1$.
 
 ### 3.2 Non-Linearity through ReLU
 Once the feature maps are generated, they are passed through a Rectified Linear Unit (ReLU) activation function. The primary purpose of this step is to introduce non-linearity, which allows the network to learn relationships that aren't just simple linear combinations of pixels. The ReLU function is defined as $f(z) = \max(0, z)$, meaning it allows positive signals to pass through unchanged while effectively "turning off" any negative values. This helps the network focus on the most relevant features and prevents the mathematical instability that can occur in deeper networks.
 
 <div align="center">
     <img src="images/feature_map_relu.png" width="700">
-    <p align="center"><strong>Fig. 8.</strong> Feature map passing through ReLU activation function.<p>
+    <p align="center"><strong>Fig. 3.</strong> Feature map passing through ReLU activation function.<p>
 </div>
 
 ### 3.3 Spatial Downsampling with Max Pooling
@@ -101,7 +69,7 @@ Following activation, the feature maps undergo Max Pooling to reduce their spati
 
 <div align="center">
     <img src="images/max_pooling.png" width="500">
-    <p align="center"><strong>Fig. 9.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size.<p>
+    <p align="center"><strong>Fig. 4.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size.<p>
 </div>
 
 ### 3.4 Flattening and the Sigmoid Prediction
@@ -203,6 +171,6 @@ This "nudges" the filter. If the filter previously caused a "False Positive" by 
 After the kernels are updated, the error signal must continue traveling backward to any earlier convolutional layers. This is done by taking the current error ($\frac{\partial L}{\partial Z}$) and convolving it with a flipped version of the kernel. This "full convolution" effectively redistributes the error back onto the original input dimensions. By the time this process is finished, every weight in every filter has a calculated gradient, allowing the model to update its entire "visual system" before the next training iteration begins.
 
 ## References
-[1] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Jan. 14, 2020. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.
+[1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 
-[2] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
+[2] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Jan. 14, 2020. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.

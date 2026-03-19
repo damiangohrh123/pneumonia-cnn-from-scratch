@@ -83,23 +83,23 @@ This function maps any input value into a strict range between 0 and 1, which re
 The loss function is the mathematical tool the network uses to measure the gap between its predictions and the actual truth. It provides a single scalar value that represents the total error of the model for a given set of images. The objective of the entire training process is to minimize this number through optimization. In a classification task like pneumonia detection, the loss function does not just look at whether the network was right or wrong, but also evaluates how confident it was in its answer, punishing confident but incorrect predictions more severely.
 
 ### 4.1 Binary Cross-Entropy (BCE)
-For binary classification, the network utilizes the Binary Cross-Entropy loss function. This function is specifically designed to work with the Sigmoid output from the final layer, which provides a probability between 0 and 1. The BCE function compares this probability to the actual label, where 0 represents a healthy scan and 1 represents a pneumonia scan. If the network predicts a high probability for a positive case and the label is actually positive, the loss is low. However, if the network is very confident about the wrong answer—for example, predicting a $0.99$ probability for pneumonia when the patient is actually healthy—the BCE function produces an extremely high loss value. This high error signal is what triggers significant adjustments to the weights during backpropagation.The mathematical formula for the loss is calculated as:
+For binary classification, the network utilizes the Binary Cross-Entropy loss function. This function is specifically designed to work with the Sigmoid output from the final layer, which provides a probability between 0 and 1. The BCE function compares this probability to the actual label, where 0 represents a healthy scan and 1 represents a pneumonia scan. If the network predicts a high probability for a positive case and the label is actually positive, the loss is low. However, if the network is very confident about the wrong answer (for example, predicting a $0.99$ probability for pneumonia when the patient is actually healthy) the BCE function produces an extremely high loss value. This high error signal is what triggers significant adjustments to the weights during backpropagation.The mathematical formula for the loss is calculated as:
 
 $$
 L = -[y \log(\hat{y}) + (1 - y) \log(1 - \hat{y})]
 $$
 
-* $y$ (The True Label): This is the ground truth, which is either 0 or 1.
-* $\hat{y}$ (The Prediction): This is the probability output by the Sigmoid function.
+* **$y$ (The True Label):** This is the ground truth, which is either 0 or 1.
+* **$\hat{y}$ (The Prediction):** This is the probability output by the Sigmoid function.
 * $\log(\hat{y})$: The logarithm ensures that as the prediction gets further from the truth, the loss increases exponentially.
 
 To understand why the formula looks like $L = -[y \log(\hat{y}) + (1 - y) \log(1 - \hat{y})]$, we have to look at the two possible scenarios for a patient:
 
 * **Scenario 1: The Positive Case ($y = 1$):**  
-When the chest X-ray contains pneumonia, the second term $(1 - y)$ becomes zero. This effectively "mutes" the healthy part of the equation, leaving only $L = -\log(\hat{y})$. The network is now solely focused on how close the prediction $\hat{y}$ is to $1$.
+When the chest X-ray contains pneumonia, the second term $(1 - y)$ becomes zero since $(1-1) = 0$, leaving only $L = -\log(\hat{y})$. The network is now solely focused on how close the prediction $\hat{y}$ is to $1$.
 
 * **Scenario 2: The Negative Case ($y = 0$):**  
-When the scan is healthy, the first term $y$ becomes zero. This mutes the pneumonia part of the equation, leaving $L = -\log(1 - \hat{y})$. The network now only evaluates how close the prediction is to $0$.
+When the scan is healthy, the first term $y$ becomes zero since $0 \log(\hat{y}) = 0$, leaving $L = -\log(1 - \hat{y})$. The network now only evaluates how close the prediction is to $0$.
 
 ### 4.2 Handling Class Imbalance and Medical Priority
 A significant challenge in medical imaging is that datasets are often imbalanced, frequently containing far more healthy scans than pneumonia scans. If the loss function treats every error the same, the model might learn to simply guess "healthy" every time to keep the total error low, which is dangerous in a clinical setting. To prevent this, a weighted version of the loss function can be implemented. By adding a penalty multiplier to the pneumonia class, the network is punished more for a False Negative (missing a sick patient) than for a False Positive (a false alarm).
@@ -113,7 +113,7 @@ $$
 In a hospital, a "False Alarm" results in an unnecessary follow-up test, but a "Missed Case" results in a patient sent home without treatment. If we set $w_{pos} = 5$, the "pain" or error signal sent to the network is five times stronger when it fails to identify a pneumonia scan. This forces the optimization process to prioritize the minority class, ensuring the model's "knowledge" is biased toward safety and detection.
 
 ## 5. Backpropagation
-Backpropagation is the process where the network learns from the error calculated by the loss function. It works by traveling backward from the output layer to the input image, using the chain rule to determine how much each individual weight and filter contributed to the final error. In a CNN, this is more complex than a standard network because the error has to be "un-pooled" and "un-convolved" to reach the earlier layers. By calculating these gradients, the network knows exactly how to nudge each parameter to perform better on the next scan.
+Backpropagation is the process where the network learns from the error calculated by the loss function. It works by traveling backward from the output layer to the first convolutional layer, using the chain rule to determine how much each individual weight and filter contributed to the final error. In a CNN, this is more complex than a standard network because the error has to be "un-pooled" and "un-convolved" to reach the earlier layers. By calculating these gradients, the network knows exactly how to nudge each parameter to perform better on the next scan.
 
 ### 5.1 The Chain Rule and Gradient Flow
 To calculate how a specific weight ($w$) should be adjusted, the network uses the Chain Rule. This mathematical principle allows us to break down a complex relationship into a series of smaller, local "links." For a weight in the dense layer, the gradient is:
@@ -124,14 +124,15 @@ $$
 
 If we treat these derivatives like fractions, the intermediate terms ($\partial \hat{y}$ and $\partial z$) effectively cancel out, leaving us with the direct relationship between the Loss and the Weight ($\frac{\partial L}{\partial w}$). In practical terms, this means:
 
-* **The Error Signal:** $\frac{\partial L}{\partial \hat{y}}$ tells us the direction of the mistake.
-* **The Activation Slope:** $\frac{\partial \hat{y}}{\partial z}$ (the Sigmoid derivative) tells us how sensitive the output was to the input at that moment.
-* **The Input Contribution:** $\frac{\partial z}{\partial w}$ is the actual value of the pixel or neuron that passed through the weight.
+* $w$: The specific weight to be updated.
+* $z$: The raw weighted sum produced by the layer, calculated as $z = \sum (I \cdot K) + b$.
+* $\hat{y}$: The final predicted probability, obtained by passing $z$ through the Sigmoid activation function.
+* $\frac{\partial L}{\partial \hat{y}}$ **The Error Signal:** How much the loss changes as the prediction changes (the error signal)
+* $\frac{\partial \hat{y}}{\partial z}$ **The Activation Slope (Sigmoid Derivative):** How much the prediction changes as the raw sum changes.
+* $\frac{\partial z}{\partial w}$ **The Input Contribution:** How much the raw sum changes as the weight changes (the input contribution).
 
-### 5.2 Backpropagating through Pooling: The "Winner" Mask
-When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to "pick the highest number" from a local window. Because there are no weights to adjust, the layer’s role in backpropagation is to act as a router for the error signal.
-
-During the forward pass, the network creates a mask, which is a temporary record that remembers the coordinates of the "winning" pixel in each $2 \times 2$ window. When the error signal travels backward, it only flows to the pixel that actually made it through the pooling stage. Since the other three pixels in the $2 \times 2$ window were discarded, they had zero impact on the final prediction, and therefore they receive zero gradient for the error. The gradient of the loss with respect to the input of the pooling layer ($I$) is defined by the following piecewise function:
+### 5.2 Backpropagating through Pooling and ReLU
+When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to select the maximum value from each $2 \times 2$ window. Because there are no weights to adjust, the layer's role in backpropagation is simply to route the error signal back to the correct location. During the forward pass, the network records an argmax mask (a temporary record of which position in each $2 \times 2$ window produced the maximum value). When the error signal travels backward, it is routed exclusively to that position. The three other pixels in each window were discarded during the forward pass and therefore had no influence on the final prediction, so they receive a gradient of zero. The gradient of the loss with respect to the input of the pooling layer $A$ is defined by the following piecewise function:
 
 $$
 \frac{\partial L}{\partial I} = \begin{cases} \frac{\partial L}{\partial O} & \text{if } I = \text{max}(window) \\ 0 & \text{otherwise} \end{cases}
@@ -142,7 +143,13 @@ Where:
 * $I$: The individual pixel in the original feature map.
 * $\text{max}(window)$: The specific pixel that was selected as the maximum during the forward pass.
 
-This routing ensures that only the features that actually influenced the network's decision are adjusted, while irrelevant pixels are ignored and their gradient is "masked" out.
+Once the gradient has been routed through the pooling layer, it must pass through the ReLU activation before reaching the convolutional layer. ReLU backpropagation follows a simple rule: the gradient is passed through unchanged at positions where the forward pass activation was positive, and set to zero at positions where it was negative. This is expressed as:
+
+$$
+\frac{\partial L}{\partial z_{i,j}} = \begin{cases} \frac{\partial L}{\partial A_{i,j}} & \text{if } z_{i,j} > 0 \\ 0 & \text{otherwise} \end{cases}
+$$
+
+It is this value, $\frac{\partial L}{\partial z_{i,j}}$, that is passed forward into section 5.3 as the incoming error signal for computing the convolutional gradients.
 
 ### 5.3 Convolutional Gradients (Updating the Kernels)
 The most critical part of the learning process is updating the convolutional filters ($K$). Unlike a standard dense layer where a weight is only responsible for one connection, a convolutional weight is reused across the entire image. Therefore, its gradient must be the sum of its performance at every single "stop" it made during the forward pass. To find the gradient for a specific weight within a $3 \times 3$ kernel, we use a double summation to accumulate error across the entire height and width of the feature map. Mathematically, the gradient for a kernel weight at position $(m, n)$ is:
@@ -152,20 +159,20 @@ $$
 $$
 
 Where:
-* $\frac{\partial L}{\partial K_{m,n}}$: This is the "Result." it tells us how much we need to change one specific pixel inside our $3 \times 3$ filter (for example, the top-right corner).
-* $\sum_{i=0}^{H-1} \sum_{j=0}^{W-1}$: These are the spatial summations. They instruct the network to look at every row ($i$) and every column ($j$) of the output feature map.
+* $\frac{\partial L}{\partial K_{m,n}}$: The total gradient for one specific weight in the $3\times3$ kernel, accumulated across every position in the feature map (for example, the top-right corner).
+* $\sum_{i=0}^{H-1} \sum_{j=0}^{W-1}$: The spatial summations, which iterate over every row $(i)$ and column $(j)$ of the output feature map.
 * $\frac{\partial L}{\partial Z_{i,j}}$: This is the Feature Map Error at a specific coordinate. It represents how much the network’s output at that exact spot contributed to the overall mistake.
 * $I_{i+m, j+n}$: This is the Original Input Pixel that the kernel weight was "looking at" during the forward pass. By using the indices $i+m$ and $j+n$, we align the error with the exact patch of the image that created it.
 
-This formula is effectively performing a cross-correlation. It checks for an overlap between the error and the input. If the error is high at a certain coordinate and the input pixel at that spot was also high (bright), the product will be large. This "blames" the filter weight for reacting too strongly to that feature.
+This formula takes two things that are already known at this stage of backpropagation: the error at every position in the feature map $\frac{\partial L}{\partial z_{i,j}}$​, computed in section 5.2, and the original input image pixel values $I_{i+m,j+n}$​. By multiplying them together at every position and summing the result, we obtain the total gradient for each kernel weight.
 
-After the double summation is completed for all 9 weights in the kernel, we have a $3 \times 3$ gradient matrix, $\frac{\partial L}{\partial K}$. We then update the kernel using the learning rate ($\eta$):
+After the double summation is completed for all 9 weights in the kernel, we have a $3 \times 3$ gradient matrix, $\frac{\partial L}{\partial K}$, where each cell corresponds to the gradient of one specific weight in the kernel. The kernel is then updated using the learning rate $\eta$:
 
 $$
 K_{new} = K_{old} - \eta \cdot \frac{\partial L}{\partial K}
 $$
 
-This "nudges" the filter. If the filter previously caused a "False Positive" by reacting to a rib bone, this update will decrease the weights responsible for that reaction, teaching the model to distinguish between bone and actual pneumonia indicators.
+Each weight is adjusted independently by its own gradient.
 
 ### 5.4 Passing Error to Previous Layers
 After the kernels are updated, the error signal must continue traveling backward to any earlier convolutional layers. This is done by taking the current error ($\frac{\partial L}{\partial Z}$) and convolving it with a flipped version of the kernel. This "full convolution" effectively redistributes the error back onto the original input dimensions. By the time this process is finished, every weight in every filter has a calculated gradient, allowing the model to update its entire "visual system" before the next training iteration begins.

@@ -113,10 +113,10 @@ $$
 In a hospital, a "False Alarm" results in an unnecessary follow-up test, but a "Missed Case" results in a patient sent home without treatment. If we set $w_{pos} = 5$, the "pain" or error signal sent to the network is five times stronger when it fails to identify a pneumonia scan. This forces the optimization process to prioritize the minority class, ensuring the model's "knowledge" is biased toward safety and detection.
 
 ## 5. Backpropagation
-Backpropagation is the process where the network learns from the error calculated by the loss function. It works by traveling backward from the output layer to the first convolutional layer, using the chain rule to determine how much each individual weight and filter contributed to the final error. In a CNN, this is more complex than a standard network because the error has to be "un-pooled" and "un-convolved" to reach the earlier layers. By calculating these gradients, the network knows exactly how to nudge each parameter to perform better on the next scan.
+Backpropagation is the process by which the network learns from the error calculated by the loss function. It works by traveling backward from the output layer to the first convolutional layer, using the chain rule to determine how much each individual weight and filter contributed to the final error. In a CNN, this is more complex than a standard dense network because the error must pass through the pooling and activation layers before reaching the convolutional weights. By calculating these gradients, the network determines the precise adjustment required for each parameter before the next training iteration begins.
 
 ### 5.1 The Chain Rule and Gradient Flow
-To calculate how a specific weight ($w$) should be adjusted, the network uses the Chain Rule. This mathematical principle allows us to break down a complex relationship into a series of smaller, local "links." For a weight in the dense layer, the gradient is:
+To calculate how a specific weight $(w)$ should be adjusted, the network uses the Chain Rule. This mathematical principle allows us to decompose a complex relationship into a series of smaller, local derivatives. For a weight in the dense output layer, the gradient is:
 
 $$
 \frac{\partial L}{\partial w} = \frac{\partial L}{\partial \hat{y}} \cdot \frac{\partial \hat{y}}{\partial z} \cdot \frac{\partial z}{\partial w}
@@ -124,8 +124,9 @@ $$
 
 If we treat these derivatives like fractions, the intermediate terms ($\partial \hat{y}$ and $\partial z$) effectively cancel out, leaving us with the direct relationship between the Loss and the Weight ($\frac{\partial L}{\partial w}$). In practical terms, this means:
 
-* $w$: The specific weight to be updated.
-* $z$: The raw weighted sum produced by the layer, calculated as $z = \sum (I \cdot K) + b$.
+* $x_i$​: The input value arriving at the dense layer from the previous layer (a flattened feature map value).
+* $w_i$: The specific weight in the dense layer connecting input $x_i$​ to the output.
+* $z$: The raw weighted sum produced by the dense layer, calculated as $z = \sum_{i} w_i \cdot x_i + b$ where each weight $w_i$ is multiplied by its corresponding input $x_i$ and summed together with a bias $b$.
 * $\hat{y}$: The final predicted probability, obtained by passing $z$ through the Sigmoid activation function.
 * $\frac{\partial L}{\partial \hat{y}}$ **The Error Signal:** How much the loss changes as the prediction changes (the error signal)
 * $\frac{\partial \hat{y}}{\partial z}$ **The Activation Slope (Sigmoid Derivative):** How much the prediction changes as the raw sum changes.
@@ -135,47 +136,108 @@ If we treat these derivatives like fractions, the intermediate terms ($\partial 
 When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to select the maximum value from each $2 \times 2$ window. Because there are no weights to adjust, the layer's role in backpropagation is simply to route the error signal back to the correct location. During the forward pass, the network records an argmax mask (a temporary record of which position in each $2 \times 2$ window produced the maximum value). When the error signal travels backward, it is routed exclusively to that position. The three other pixels in each window were discarded during the forward pass and therefore had no influence on the final prediction, so they receive a gradient of zero. The gradient of the loss with respect to the input of the pooling layer $A$ is defined by the following piecewise function:
 
 $$
-\frac{\partial L}{\partial I} = \begin{cases} \frac{\partial L}{\partial O} & \text{if } I = \text{max}(window) \\ 0 & \text{otherwise} \end{cases}
+\frac{\partial L}{\partial A_{i,j}} = \left\{
+\begin{array}{ll}
+      \frac{\partial L}{\partial O_{i,j}} & \text{if } A_{i,j} = \max(\text{window}) \\
+      0 & \text{otherwise} \\
+\end{array}
+\right.
 $$
 
 Where:  
-* $\frac{\partial L}{\partial O}$: The incoming error signal from the next layer (the output of the pooling).
-* $I$: The individual pixel in the original feature map.
+* $\frac{\partial L}{\partial O_{i,j}}$: The incoming error signal from the next layer (the gradient with respect to the output of the pooling layer).
+* $A_{i,j}$: The individual pixel in the input feature map arriving at the pooling layer.
 * $\text{max}(window)$: The specific pixel that was selected as the maximum during the forward pass.
 
-Once the gradient has been routed through the pooling layer, it must pass through the ReLU activation before reaching the convolutional layer. ReLU backpropagation follows a simple rule: the gradient is passed through unchanged at positions where the forward pass activation was positive, and set to zero at positions where it was negative. This is expressed as:
+Example Argmax mask:
+
+$$
+\text{Input} = \begin{bmatrix} 9 & 3 & 1 & 8 \\ 2 & 6 & 5 & 3 \\ 8 & 4 & 2 & 6 \\ 1 & 7 & 9 & 4 \end{bmatrix} \quad
+\text{Argmax mask} = \begin{bmatrix} 1 & 0 & 0 & 1 \\ 0 & 0 & 0 & 0 \\ 1 & 0 & 0 & 0 \\ 0 & 0 & 1 & 0 \end{bmatrix}
+$$
+
+Once the gradient has been routed through the pooling layer, it must pass through the ReLU activation before reaching the convolutional layer. ReLU backpropagation follows a straightforward rule: the gradient is passed through unchanged at positions where the forward pass activation was positive, and set to zero at positions where it was negative. This is expressed as:
 
 $$
 \frac{\partial L}{\partial z_{i,j}} = \begin{cases} \frac{\partial L}{\partial A_{i,j}} & \text{if } z_{i,j} > 0 \\ 0 & \text{otherwise} \end{cases}
 $$
 
-It is this value, $\frac{\partial L}{\partial z_{i,j}}$, that is passed forward into section 5.3 as the incoming error signal for computing the convolutional gradients.
+Where:
+
+* $\frac{\partial L}{\partial A_{i,j}}$​: The incoming error signal from the pooling layer, as computed above.
+* $z_{i,j}$​: The raw pre-activation value at position $(i,j)$, computed during the forward pass.
+
+It is this value, $\frac{\partial L}{\partial z_{i,j}}$, that is passed back into section 5.3 as the incoming error signal for computing the convolutional gradients.
 
 ### 5.3 Convolutional Gradients (Updating the Kernels)
-The most critical part of the learning process is updating the convolutional filters ($K$). Unlike a standard dense layer where a weight is only responsible for one connection, a convolutional weight is reused across the entire image. Therefore, its gradient must be the sum of its performance at every single "stop" it made during the forward pass. To find the gradient for a specific weight within a $3 \times 3$ kernel, we use a double summation to accumulate error across the entire height and width of the feature map. Mathematically, the gradient for a kernel weight at position $(m, n)$ is:
+The most critical part of the learning process is updating the convolutional filters ($K$). Unlike a standard dense layer where a weight is only responsible for one connection, a convolutional weight is reused across the entire image. Therefore, its gradient must be the sum of its contribution at every position it visited during the forward pass. To find the gradient for a specific weight within a $3 \times 3$ kernel, we use a double summation to accumulate error across the entire height and width of the feature map. Mathematically, the gradient for a kernel weight at position $(m, n)$ is:
 
 $$
 \frac{\partial L}{\partial K_{m,n}} = \sum_{i=0}^{H-1} \sum_{j=0}^{W-1} \frac{\partial L}{\partial Z_{i,j}} \cdot I_{i+m, j+n}
 $$
 
 Where:
-* $\frac{\partial L}{\partial K_{m,n}}$: The total gradient for one specific weight in the $3\times3$ kernel, accumulated across every position in the feature map (for example, the top-right corner).
+* $\frac{\partial L}{\partial K_{m,n}}$: The total gradient for one specific weight in the $3\times3$ kernel, accumulated across every position in the feature map.
 * $\sum_{i=0}^{H-1} \sum_{j=0}^{W-1}$: The spatial summations, which iterate over every row $(i)$ and column $(j)$ of the output feature map.
-* $\frac{\partial L}{\partial Z_{i,j}}$: This is the Feature Map Error at a specific coordinate. It represents how much the network’s output at that exact spot contributed to the overall mistake.
-* $I_{i+m, j+n}$: This is the Original Input Pixel that the kernel weight was "looking at" during the forward pass. By using the indices $i+m$ and $j+n$, we align the error with the exact patch of the image that created it.
+* $\frac{\partial L}{\partial Z_{i,j}}$: The feature map error at a specific coordinate, computed in section 5.2. It represents how much the network's output at that exact position contributed to the overall loss.
+* $I_{i+m, j+n}$: The input pixel that the kernel weight was reading during the forward pass. By using the indices $i+m$ and $j+n$, we align the error with the exact patch of the image that created it.
 
-This formula takes two things that are already known at this stage of backpropagation: the error at every position in the feature map $\frac{\partial L}{\partial z_{i,j}}$​, computed in section 5.2, and the original input image pixel values $I_{i+m,j+n}$​. By multiplying them together at every position and summing the result, we obtain the total gradient for each kernel weight.
+This formula takes two things that are already known at this stage of backpropagation: the error at every position in the feature map $\frac{\partial L}{\partial z_{i,j}}$​, computed in section 5.2, and the original input image pixel values $I_{i+m,j+n}$​. By multiplying them together at every position and summing the result, we obtain the total gradient for each kernel weight. Critically, $\frac{\partial L}{\partial z_{i,j}}$ is spent twice at this layer: once here to update the kernel weights, and once in section 5.4 to pass the error signal further backwards. This is true at every convolutional layer in the network.
 
-After the double summation is completed for all 9 weights in the kernel, we have a $3 \times 3$ gradient matrix, $\frac{\partial L}{\partial K}$, where each cell corresponds to the gradient of one specific weight in the kernel. The kernel is then updated using the learning rate $\eta$:
+After the double summation is completed for all 9 weights in the kernel, we obtain a $3 \times 3$ gradient matrix, $\frac{\partial L}{\partial K}$, where each cell corresponds to the gradient of one specific weight in the kernel. This is shorthand for 9 simultaneous independent updates, one per kernel weight. For each position $(m,n)$, the update is:
 
 $$
-K_{new} = K_{old} - \eta \cdot \frac{\partial L}{\partial K}
+K_{m,n}^{\text{new}} = K_{m,n}^{\text{old}} - \eta \cdot \frac{\partial L}{\partial K_{m,n}}
 $$
 
-Each weight is adjusted independently by its own gradient.
+Written compactly for all 9 weights simultaneously:
 
-### 5.4 Passing Error to Previous Layers
-After the kernels are updated, the error signal must continue traveling backward to any earlier convolutional layers. This is done by taking the current error ($\frac{\partial L}{\partial Z}$) and convolving it with a flipped version of the kernel. This "full convolution" effectively redistributes the error back onto the original input dimensions. By the time this process is finished, every weight in every filter has a calculated gradient, allowing the model to update its entire "visual system" before the next training iteration begins.
+$$
+K_{\text{new}} = K_{\text{old}} - \eta \cdot \frac{\partial L}{\partial K}
+$$
+
+Each weight is adjusted independently by its own gradient. A weight that contributed heavily to the loss receives a large update, while a weight that had little influence receives a small one.
+
+### 5.4 Passing Error to Previous Feature Maps
+Once the kernel weights have been updated, $\frac{\partial L}{\partial z_{i,j}}$​ is spent for the second time now to compute how much error each input pixel in the current layer's input feature map contributed to the loss. This is necessary so that any earlier convolutional layers have an error signal to backpropagate through in turn.
+
+To understand why this requires a flipped kernel, consider what happened during the forward pass. As the kernel slid across the input, each input pixel was touched by a different kernel weight depending on the kernel's position. Taking pixel $e$ as an example:
+
+$$\begin{aligned}
+\text{Kernel at } (0,0): & \quad e \cdot K_{1,1} \rightarrow z_{0,0} \\
+\text{Kernel at } (0,1): & \quad e \cdot K_{1,0} \rightarrow z_{0,1} \\
+\text{Kernel at } (1,0): & \quad e \cdot K_{0,1} \rightarrow z_{1,0} \\
+\text{Kernel at } (1,1): & \quad e \cdot K_{0,0} \rightarrow z_{1,1}
+\end{aligned}$$
+
+<div align="center">
+    <img src="images/kernel_sliding_over_e.jpeg" width="700">
+    <p align="center"><strong>Fig. 5.</strong> As the 2×2 kernel slides to each of the four valid positions over the 3×3 input, pixel e (centre) is covered by a different kernel weight at each position. During backpropagation, the error at each output must therefore flow back to pixel e through the exact kernel weight that originally produced it. <p>
+</div>
+
+The total error flowing back to pixel $e$ is therefore calculated by summing the gradients from each output $z_{i,j}$ that $e$ contributed to, weighted by their respective kernel weights:
+
+
+$$\frac{\partial L}{\partial e} = \frac{\partial L}{\partial z_{0,0}} K_{1,1} + \frac{\partial L}{\partial z_{0,1}} K_{1,0} + \frac{\partial L}{\partial z_{1,0}} K_{0,1} + \frac{\partial L}{\partial z_{1,1}} K_{0,0}$$
+
+Notice that the kernel weights in this sum appear in reverse order: $K_{1,1}, K_{1,0}, K_{0,1}, K_{0,0}$, which is the original kernel read backwards. This reverse ordering arises directly from the forward pass: as the kernel slid from position $(0,0)$ to $(1,1)$ over pixel $e$, the weight directly above $e$ progressed from $K_{1,1}$ down to $K_{0,0}$, the opposite direction to the kernel's travel. This has an important consequence for backpropagation. If we naively convolved the error map with the original kernel, each output error would be paired with the wrong weight:
+
+$$
+\frac{\partial L}{\partial e}_{\text{wrong}} = \frac{\partial L}{\partial z_{0,0}} \times K_{0,0} + \frac{\partial L}{\partial z_{0,1}} \times K_{0,1} + \frac{\partial L}{\partial z_{1,0}} \times K_{1,0} + \frac{\partial L}{\partial z_{1,1}} \times K_{1,1}
+$$
+
+Flipping the kernel 180°, which is equivalent to reversing it both horizontally and vertically, corrects this misalignment automatically, producing the correct weight-error pairings for every input pixel simultaneously without manually tracking each connection. The general formula for the gradient with respect to the input feature map is:
+
+$$
+\frac{\partial L}{\partial I_{i,j}} = \sum_{m} \sum_{n} \frac{\partial L}{\partial z_{i-m, j-n}} \cdot K_{m,n}
+$$
+
+where the shifted indices $(i-m, j-n)$ are the mathematical expression of the kernel flip. The resulting gradient map $\frac{\partial L}{\partial I}$ then becomes the incoming error signal for the previous layer, where the same two-step process (update weights, pass error backwards) repeats again, all the way back to the first convolutional layer.
+
+<div align="center">
+    <img src="images/flipped_kernel.png" width="500">
+    <p align="center"><strong>Fig. 6. </strong>Flipping the kernel 180° reverses the order of the weights, which is mathematically equivalent to changing the convolution indices from +(m, n) to -(m, n).<p>
+</div>
 
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.

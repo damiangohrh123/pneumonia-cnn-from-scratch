@@ -136,12 +136,7 @@ If we treat these derivatives like fractions, the intermediate terms ($\partial 
 When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to select the maximum value from each $2 \times 2$ window. Because there are no weights to adjust, the layer's role in backpropagation is simply to route the error signal back to the correct location. During the forward pass, the network records an argmax mask (a temporary record of which position in each $2 \times 2$ window produced the maximum value). When the error signal travels backward, it is routed exclusively to that position. The three other pixels in each window were discarded during the forward pass and therefore had no influence on the final prediction, so they receive a gradient of zero. The gradient of the loss with respect to the input of the pooling layer $A$ is defined by the following piecewise function:
 
 $$
-\frac{\partial L}{\partial A_{i,j}} = \left\{
-\begin{array}{ll}
-      \frac{\partial L}{\partial O_{i,j}} & \text{if } A_{i,j} = \max(\text{window}) \\
-      0 & \text{otherwise} \\
-\end{array}
-\right.
+\frac{\partial L}{\partial A_{i,j}} = \begin{cases} \frac{\partial L}{\partial O_{i,j}} & \text{if } A_{i,j} = \max(\text{window}) \\ 0 & \text{otherwise} \end{cases}
 $$
 
 Where:  
@@ -152,8 +147,18 @@ Where:
 Example Argmax mask:
 
 $$
-\text{Input} = \begin{bmatrix} 9 & 3 & 1 & 8 \\ 2 & 6 & 5 & 3 \\ 8 & 4 & 2 & 6 \\ 1 & 7 & 9 & 4 \end{bmatrix} \quad
-\text{Argmax mask} = \begin{bmatrix} 1 & 0 & 0 & 1 \\ 0 & 0 & 0 & 0 \\ 1 & 0 & 0 & 0 \\ 0 & 0 & 1 & 0 \end{bmatrix}
+\text{Input} = \begin{bmatrix} 
+9 & 3 & 1 & 8 \\ 
+2 & 6 & 5 & 3 \\ 
+8 & 4 & 2 & 6 \\ 
+1 & 7 & 9 & 4 
+\end{bmatrix} \quad
+\text{Argmax mask} = \begin{bmatrix} 
+1 & 0 & 0 & 1 \\ 
+0 & 0 & 0 & 0 \\ 
+1 & 0 & 0 & 0 \\ 
+0 & 0 & 1 & 0 
+\end{bmatrix}
 $$
 
 Once the gradient has been routed through the pooling layer, it must pass through the ReLU activation before reaching the convolutional layer. ReLU backpropagation follows a straightforward rule: the gradient is passed through unchanged at positions where the forward pass activation was positive, and set to zero at positions where it was negative. This is expressed as:

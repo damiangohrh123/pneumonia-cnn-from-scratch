@@ -246,6 +246,32 @@ where the shifted indices $(i-m, j-n)$ are the mathematical expression of the ke
     <p align="center"><strong>Fig. 6. </strong>Flipping the kernel 180° reverses the order of the weights, which is mathematically equivalent to changing the convolution indices from +(m, n) to -(m, n).<p>
 </div>
 
+## 6. Training & Optimization
+The training process is a continuous loop of predicting, measuring error, and adjusting. While sections 3 through 5 described how a single forward and backward pass works for one image, optimization is what allows the network to learn from an entire dataset of thousands of X-rays. This section explains how the gradients computed in section 5 are applied in practice to update every learnable parameter in the network.
+
+### 6.1 The Stochastic Gradient Descent (SGD) Loop
+The network learns through a process called Stochastic Gradient Descent (SGD). Instead of processing the entire dataset at once, the model processes one small batch of images at a time. For each batch, it performs a forward pass to obtain a prediction, computes the loss using the Binary Cross-Entropy function from section 4.1, and then performs a backward pass to compute the gradients for every learnable parameter as described in section 5. The weights are then immediately updated using those gradients. By repeating this process thousands of times across the entire dataset, the model progressively reduces the total loss until it reaches the lowest point.
+
+### 6.2 The Learning Rate ($\eta$)
+The learning rate $\eta$ is a multiplier applied to every gradient before it is used to update a weight. It controls how large a step the network takes in the direction of the gradient. The general update rule is:
+
+$$
+W_{\text{new}} = W_{\text{old}} - \eta \cdot \frac{\partial L}{\partial W}
+$$
+
+This rule is applied to every learnable parameter in the network after each backward pass. Concretely, for the CNN described in this paper, this means:
+
+* Every weight in the convolutional kernels: $K_{m,n}^{\text{new}} = K_{m,n}^{\text{old}} - \eta \cdot \frac{\partial L}{\partial K_{m,n}}$
+
+* Every weight in the dense layer: $w_{i}^{\text{new}} = w_{i}^{\text{old}} - \eta \cdot \frac{\partial L}{\partial w_{i}}$
+
+* Every bias term in every layer: $b^{\text{new}} = b^{\text{old}} - \eta \cdot \frac{\partial L}{\partial b}$
+
+If the learning rate is too high, the network may overshoot the optimal weights and fail to converge. If it is too low, the network will require a large number of epochs to reach an acceptable level of accuracy. Selecting an appropriate learning rate is therefore critical to ensuring the model converges efficiently.
+
+### 6.3 Epochs and Convergence
+Training is measured in epochs, where one epoch represents the network processing every image in the training dataset exactly once. Because the network only adjusts its weights by a small amount per batch, multiple epochs are required for the network to fully learn the features of a medical scan. As training progresses, the total loss should steadily decrease while the validation accuracy increases. When the loss plateaus and stops decreasing, the model has reached convergence.
+
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 

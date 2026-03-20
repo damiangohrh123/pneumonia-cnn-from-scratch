@@ -272,6 +272,38 @@ If the learning rate is too high, the network may overshoot the optimal weights 
 ### 6.3 Epochs and Convergence
 Training is measured in epochs, where one epoch represents the network processing every image in the training dataset exactly once. Because the network only adjusts its weights by a small amount per batch, multiple epochs are required for the network to fully learn the features of a medical scan. As training progresses, the total loss should steadily decrease while the validation accuracy increases. When the loss plateaus and stops decreasing, the model has reached convergence.
 
+## 7. Dataset and Preprocessing
+Before any training can begin, the raw chest X-ray images must be cleaned and standardized. In a medical dataset, images often come in different sizes, brightness levels, and file formats. Preprocessing ensures that the neural network receives a consistent input, which helps the mathematical gradients remain stable and prevents the model from responding to irrelevant artefacts such as the outer border of a scan.
+
+### 7.1 Resizing and Grayscale Conversion
+Medical X-rays are typically very high resolution, often thousands of pixels wide. Processing these directly on a CPU would be computationally prohibitive and would likely exhaust the system's memory. To address this, all images are resized to a uniform $64 \times 64$ resolution. While this reduction in resolution sacrifices some fine-grained detail, this size is sufficient to preserve the primary patterns associated with pneumonia while remaining small enough for a CNN to process efficiently. This is an explicit trade-off between computational feasibility and diagnostic detail.
+
+Additionally, since color does not exist in X-rays, any images with multiple color channels are converted to a single grayscale channel using the standard luminance formula:
+
+$$
+I_{\text{gray}} = 0.299 \cdot R + 0.587 \cdot G + 0.114 \cdot B
+$$
+
+where $R$, $G$, and $B$ are the red, green, and blue channel values respectively. The green channel is weighted most heavily because the human visual system is most sensitive to green wavelengths. This conversion reduces the total volume of data the network must process without discarding any clinically relevant information, since X-ray images carry no diagnostic information in color.
+
+### 7.2 Pixel Normalization
+Raw pixel values typically range from 0 (black) to 255 (white). If these large values are fed directly into the network, they can cause the gradients to grow unstably large during backpropagation (exploding gradients). To prevent this, every pixel is divided by 255 following the normalization formula:
+
+$$
+I_{\text{normalized}} = \frac{I_{\text{raw}}}{255}
+$$
+
+This scales every pixel value into the range:
+
+$$
+I_{\text{normalized}} \in [0, 1]
+$$
+
+This normalization step ensures that the input values are small and bounded, which allows the activation functions (such as ReLU and Sigmoid) to operate reliably and the gradients to remain numerically stable throughout training.
+
+### 7.3 Data Splitting: Training vs. Testing
+To truly know if the model is learning or just memorizing, the dataset is split into two distinct groups: the Training Set and the Test Set. The network only ever "sees" the training set during the backpropagation phase. The test set is kept completely hidden until the training is finished. By evaluating the model on these "unseen" images, we can calculate a true accuracy score and ensure that the model can actually diagnose new patients it has never encountered before.
+
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 

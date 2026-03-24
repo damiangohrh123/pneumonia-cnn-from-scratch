@@ -132,7 +132,21 @@ If we treat these derivatives like fractions, the intermediate terms ($\partial 
 * $\frac{\partial \hat{y}}{\partial z}$ **The Activation Slope (Sigmoid Derivative):** How much the prediction changes as the raw sum changes.
 * $\frac{\partial z}{\partial w}$ **The Input Contribution:** How much the raw sum changes as the weight changes (the input contribution).
 
-### 5.2 Backpropagating through Pooling and ReLU
+### 5.2 The Initial Error Signal: Weighted BCE Loss
+The process starts here. We calculate the gradient of the loss with respect to the final prediction ($\frac{\partial L}{\partial \hat{y}}$). This is the "primary signal" that tells us how far off the model was.
+
+$$
+\frac{\partial L}{\partial \hat{y}} = \begin{cases} -\frac{w_{pos}}{\hat{y}} & \text{if } y = 1 \\ \frac{1}{1 - \hat{y}} & \text{if } y = 0 \end{cases}
+$$
+
+### 5.3 The Output Activation (Sigmoid Gradient)
+Once we have the loss gradient, it must pass through the Sigmoid activation function to reach the raw scores ($z$). We use the Chain Rule to multiply the loss gradient by the sigmoid derivative:
+
+$$
+\text{Local Gradient} = \frac{\partial L}{\partial \hat{y}} \cdot \frac{\partial \hat{y}}{\partial z}
+$$
+
+### 5.4 Backpropagating through Pooling and ReLU
 When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to select the maximum value from each $2 \times 2$ window. Because there are no weights to adjust, the layer's role in backpropagation is simply to route the error signal back to the correct location. During the forward pass, the network records an argmax mask (a temporary record of which position in each $2 \times 2$ window produced the maximum value). When the error signal travels backward, it is routed exclusively to that position. The three other pixels in each window were discarded during the forward pass and therefore had no influence on the final prediction, so they receive a gradient of zero. The gradient of the loss with respect to the input of the pooling layer $A$ is defined by the following piecewise function:
 
 $$
@@ -176,7 +190,7 @@ Where:
 
 It is this value, $\frac{\partial L}{\partial z_{i,j}}$, that is passed back into section 5.3 as the incoming error signal for computing the convolutional gradients.
 
-### 5.3 Convolutional Gradients (Updating the Kernels)
+### 5.5 Convolutional Gradients (Updating the Kernels)
 The most critical part of the learning process is updating the convolutional filters ($K$). Unlike a standard dense layer where a weight is only responsible for one connection, a convolutional weight is reused across the entire image. Therefore, its gradient must be the sum of its contribution at every position it visited during the forward pass. To find the gradient for a specific weight within a $3 \times 3$ kernel, we use a double summation to accumulate error across the entire height and width of the feature map. Mathematically, the gradient for a kernel weight at position $(m, n)$ is:
 
 $$
@@ -186,10 +200,10 @@ $$
 Where:
 * $\frac{\partial L}{\partial K_{m,n}}$: The total gradient for one specific weight in the $3\times3$ kernel, accumulated across every position in the feature map.
 * $\sum_{i=0}^{H-1} \sum_{j=0}^{W-1}$: The spatial summations, which iterate over every row $(i)$ and column $(j)$ of the output feature map.
-* $\frac{\partial L}{\partial Z_{i,j}}$: The feature map error at a specific coordinate, computed in section 5.2. It represents how much the network's output at that exact position contributed to the overall loss.
+* $\frac{\partial L}{\partial Z_{i,j}}$: The feature map error at a specific coordinate, computed in section 5.4. It represents how much the network's output at that exact position contributed to the overall loss.
 * $I_{i+m, j+n}$: The input pixel that the kernel weight was reading during the forward pass. By using the indices $i+m$ and $j+n$, we align the error with the exact patch of the image that created it.
 
-This formula takes two things that are already known at this stage of backpropagation: the error at every position in the feature map $\frac{\partial L}{\partial z_{i,j}}$​, computed in section 5.2, and the original input image pixel values $I_{i+m,j+n}$​. By multiplying them together at every position and summing the result, we obtain the total gradient for each kernel weight. Critically, $\frac{\partial L}{\partial z_{i,j}}$ is spent twice at this layer: once here to update the kernel weights, and once in section 5.4 to pass the error signal further backwards. This is true at every convolutional layer in the network.
+This formula takes two things that are already known at this stage of backpropagation: the error at every position in the feature map $\frac{\partial L}{\partial z_{i,j}}$​, computed in section 5.4, and the original input image pixel values $I_{i+m,j+n}$​. By multiplying them together at every position and summing the result, we obtain the total gradient for each kernel weight. Critically, $\frac{\partial L}{\partial z_{i,j}}$ is spent twice at this layer: once here to update the kernel weights, and once in section 5.6 to pass the error signal further backwards. This is true at every convolutional layer in the network.
 
 After the double summation is completed for all 9 weights in the kernel, we obtain a $3 \times 3$ gradient matrix, $\frac{\partial L}{\partial K}$, where each cell corresponds to the gradient of one specific weight in the kernel. This is shorthand for 9 simultaneous independent updates, one per kernel weight. For each position $(m,n)$, the update is:
 
@@ -205,7 +219,7 @@ $$
 
 Each weight is adjusted independently by its own gradient. A weight that contributed heavily to the loss receives a large update, while a weight that had little influence receives a small one.
 
-### 5.4 Passing Error to Previous Feature Maps
+### 5.6 Passing Error to Previous Feature Maps
 Once the kernel weights have been updated, $\frac{\partial L}{\partial z_{i,j}}$​ is spent for the second time now to compute how much error each input pixel in the current layer's input feature map contributed to the loss. This is necessary so that any earlier convolutional layers have an error signal to backpropagate through in turn.
 
 To understand why this requires a flipped kernel, consider what happened during the forward pass. As the kernel slid across the input, each input pixel was touched by a different kernel weight depending on the kernel's position. Taking pixel $e$ as an example:

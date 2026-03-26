@@ -31,13 +31,14 @@ def sigmoid_derivative(output_val: float) -> float:
 
 def relu(z: float) -> float:
     """
-    Returns z if positive, else 0.
+    Leaky ReLU: Returns z if positive, else a tiny fraction of z.
+    Prevents 'dead' neurons in pure Python implementations.
     """
-    return max(0.0, z)
+    return z if z > 0 else 0.01 * z
 
-def relu_derivative(z: float) -> int:
+def relu_derivative(z: float) -> float:
     """
-    Computes the gradient of ReLU.
+    Computes the gradient of Leaky ReLU.
 
     Args:
         z: The raw input to the ReLU function.
@@ -45,4 +46,4 @@ def relu_derivative(z: float) -> int:
     Returns:
         The local gradient for backpropagation.
     """
-    return 1 if z > 0 else 0
+    return 1.0 if z > 0 else 0.01

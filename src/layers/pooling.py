@@ -18,7 +18,7 @@ class MaxPoolingLayer:
         # Cache for backpropagation (storing the forward pass input)
         self.last_input: List[List[List[float]]] = []
 
-    def forward(self, input_3d: List[List[List[float]]]) -> List[List[List[List[float]]]]:
+    def forward(self, input_3d: List[List[List[float]]]) -> List[List[List[float]]]:
         """
         Downsamples the feature maps by selecting the maximum value in each window.
         
@@ -31,13 +31,13 @@ class MaxPoolingLayer:
         # Cache input for the backward pass to identify 'winning' pixel coordinates
         self.last_input = input_3d
 
-        h: int = len(input_3d)
-        w: int = len(input_3d[0])
+        in_h: int = len(input_3d)
+        in_w: int = len(input_3d[0])
         f_count: int = len(input_3d[0][0]) # Filter count
 
         # Output dimensions: (H // size) and (W // size)
-        out_h: int = h // self.size
-        out_w: int = w // self.size
+        out_h: int = in_h // self.size
+        out_w: int = in_w // self.size
         
         # Initialize 3D output: [row][col][filter]
         output: List[List[List[float]]] = [
@@ -77,8 +77,8 @@ class MaxPoolingLayer:
         Returns:
             A 3D list of gradients with the same shape as the original input.
         """
-        h: int = len(self.last_input)
-        w: int = len(self.last_input[0])
+        in_h: int = len(self.last_input)
+        in_w: int = len(self.last_input[0])
         f_count: int = len(self.last_input[0][0]) # Filter count
 
         # Dimensions of the incoming gradient (the shrunk version)
@@ -87,7 +87,7 @@ class MaxPoolingLayer:
         
         # Initialize gradient map with zeros. Shape matches the original input.
         d_L_d_input: List[List[List[float]]] = [
-            [[0.0 for _ in range(f_count)] for _ in range(w)] for _ in range(h)
+            [[0.0 for _ in range(f_count)] for _ in range(in_w)] for _ in range(in_h)
         ]
         
         # Iterate through each filter in the layer

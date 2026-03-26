@@ -56,7 +56,7 @@ class DenseLayer:
 
     def backward(self, d_L_d_out: List[float], learning_rate: float) -> List[float]:
         """
-        Updates weights/biases and passes the error back to the flattened vector.
+        Updates weights/biases with L2 regularization and passes the error back to the flattened vector.
         
         Args:
             d_L_d_out: Gradient of loss with respect to the output neurons.
@@ -65,7 +65,10 @@ class DenseLayer:
         Returns:
             The gradient with respect to the input vector (to pass back to Pooling).
         """
-        # Initialize the input gradient vector (the error signal to pass back)
+        # Strength of the weight penalty
+        l2_lambda: float = 0.001
+
+        # Initialize the input gradient vector
         d_L_d_input: List[float] = [0.0] * self.input_size
         
         for i in range(self.output_size):
@@ -73,18 +76,19 @@ class DenseLayer:
             grad: float = d_L_d_out[i]
             
             for j in range(self.input_size):
-                # Calculate gradient w.r.t. input (Error * Weight)
-                # This 'blame' is accumulated for feature j to be passed to the Pooling layer.
+                # 1. Calculate gradient for the layer below (Pooling)
                 d_L_d_input[j] += grad * self.weights[i][j]
                 
-                # Calculate gradient w.r.t. weight (Error * Input)
-                # This identifies how much weight [i][j] contributed to the specific error.
+                # 2. Calculate the standard weight gradient
                 weight_gradient: float = grad * self.last_input[j]
 
-                # Update weight using Stochastic Gradient Descent (SGD)
-                self.weights[i][j] -= learning_rate * weight_gradient
+                # 3. Apply L2 Regularization to the update
+                # Formula: new_weight = old_weight - (lr * gradient) - (lr * lambda * old_weight)
+                l2_penalty: float = l2_lambda * self.weights[i][j]
+
+                self.weights[i][j] -= learning_rate * (weight_gradient + l2_penalty)
             
-            # Update bias
+            # 4. Update bias
             self.biases[i] -= learning_rate * grad
             
         return d_L_d_input

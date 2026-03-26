@@ -1,3 +1,4 @@
+import math
 import random
 from typing import List
 
@@ -19,11 +20,14 @@ class DenseLayer:
         self.output_size: int = output_size
         
         # Initialize weights: List[output_neuron][input_connection]
+        # Calculate the 'He' scale factor
+        scale = math.sqrt(2.0 / input_size)
+
         self.weights: List[List[float]] = [
-            [random.uniform(-0.1, 0.1) for _ in range(input_size)] 
+            [random.gauss(0, scale) for _ in range(input_size)] 
             for _ in range(output_size)
         ]
-        self.biases: List[float] = [0.0] * output_size
+        self.biases: List[float] = [0.01 for _ in range(output_size)]
         
         # Cache for backpropagation
         self.last_input: List[float] = []

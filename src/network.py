@@ -87,13 +87,14 @@ class Model:
         # 4. Pooling Backward
         d_L_d_relu = self.pool.backward(d_L_d_pool)
         
-        # 5. ReLU Backward
-        # Only pass gradient if the original value was > 0
+        # 5. Leaky ReLU Backward
+        # Instead of setting gradients to 0 for negative values, we multiply by the derivative (0.01) to keep the 'dead' neurons learning.
         for i in range(len(d_L_d_relu)):
             for j in range(len(d_L_d_relu[0])):
                 for f in range(len(d_L_d_relu[0][0])):
-                    if self.last_conv_raw[i][j][f] <= 0:
-                        d_L_d_relu[i][j][f] = 0
+                    # Use the stored raw convolution values to find the gradient
+                    raw_val = self.last_conv_raw[i][j][f]
+                    d_L_d_relu[i][j][f] *= relu_derivative(raw_val)
         
         # 6. Convolution Backward
         self.conv.backward(d_L_d_relu, learning_rate)

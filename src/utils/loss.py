@@ -37,6 +37,9 @@ def loss_derivative(y_true: int, y_pred: float, w_pos: float = 5.0) -> float:
     y_pred = max(epsilon, min(1 - epsilon, y_pred))
     
     if y_true == 1:
-        return -w_pos / y_pred
+        grad = -w_pos / y_pred
     else:
-        return 1 / (1 - y_pred)
+        grad = 1 / (1 - y_pred)
+    
+    # GRADIENT CLIPPING: Limit the magnitude to 100.0 or 10.0
+    return max(-100.0, min(100.0, grad))

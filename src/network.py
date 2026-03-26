@@ -59,6 +59,8 @@ class Model:
         dense_out = self.dense.forward(flat_out)
         prediction = sigmoid(dense_out[0])
         
+        self.last_prediction = prediction
+
         return prediction
 
     def backward(self, d_L_d_pred: float, learning_rate: float) -> None:
@@ -69,17 +71,23 @@ class Model:
             d_L_d_pred: The initial gradient from the loss function.
             learning_rate: The speed of optimization.
         """
-        # 1. Dense Layer Backward
-        # Since we use sigmoid, d_L_d_out for Dense is: error * sigmoid_derivative
-        d_L_d_flat = self.dense.backward([d_L_d_pred], learning_rate)
+        # 1. Output Activation Backpropagation
+        # The gradient must pass through the Sigmoid derivative: s(z) * (1 - s(z))
+        # This converts the loss gradient into the error signal for the Dense layer.
+        sig_grad = (self.last_prediction * (1.0 - self.last_prediction)) + 0.01  # Add small value (0.01) to prevent zero gradient
+        d_L_d_dense_out = d_L_d_pred * sig_grad
+
+        # 2. Dense Layer Backpropagation
+        # Updates weights/biases in the Dense layer and returns gradient w.r.t inputs.
+        d_L_d_flat = self.dense.backward([d_L_d_dense_out], learning_rate)
         
-        # 2. Unflatten back to 3D (31x31x8)
+        # 3. Unflatten back to 3D (31x31x8)
         d_L_d_pool = unflatten(d_L_d_flat, [31, 31, 8])
         
-        # 3. Pooling Backward
+        # 4. Pooling Backward
         d_L_d_relu = self.pool.backward(d_L_d_pool)
         
-        # 4. ReLU Backward
+        # 5. ReLU Backward
         # Only pass gradient if the original value was > 0
         for i in range(len(d_L_d_relu)):
             for j in range(len(d_L_d_relu[0])):
@@ -87,5 +95,5 @@ class Model:
                     if self.last_conv_raw[i][j][f] <= 0:
                         d_L_d_relu[i][j][f] = 0
         
-        # 5. Convolution Backward
+        # 6. Convolution Backward
         self.conv.backward(d_L_d_relu, learning_rate)

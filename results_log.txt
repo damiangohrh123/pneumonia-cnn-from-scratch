@@ -1,0 +1,10 @@
+Model Version: v1.0 (Baseline)
+Date: 27/03/2026
+Architecture: 1 Conv (8 filters, 3x3), 1 MaxPool (2x2), 1 Dense
+Key Settings: He Initialization, Leaky ReLU (alpha=0.01), Sigmoid Leak (+0.01)
+Learning Rate: 0.00001
+
+Train Acc: 91.99%
+Test Acc: 75.16%
+Avg Loss: 2.3745
+Notes: Model is learning features but showing significant overfitting.

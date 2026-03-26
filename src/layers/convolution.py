@@ -72,7 +72,7 @@ class ConvolutionLayer:
 
     def backward(self, d_L_d_out: List[List[List[float]]], learning_rate: float) -> List[List[float]]:
         """
-        Calculates gradients for kernels and passes error back to input.
+        Calculates gradients for kernels and passes error back to input with L2 regularization.
         
         Args:
             d_L_d_out: The gradient of the loss with respect to this layer's output.
@@ -85,6 +85,9 @@ class ConvolutionLayer:
         in_w: int = len(self.last_input[0])
         out_h: int = len(d_L_d_out)
         out_w: int = len(d_L_d_out[0])
+
+        # Strength of the weight penalty
+        l2_lambda: float = 0.001
         
         # Initialize gradient storage for filters [filter][row][col]
         d_L_d_filters: List[List[List[float]]] = [
@@ -95,34 +98,41 @@ class ConvolutionLayer:
         # Initialize gradient storage for the input image [row][col]
         d_L_d_input: List[List[float]] = [[0.0 for _ in range(in_w)] for _ in range(in_h)]
 
-        # Iterate through each filter in the layer
+        # 1. Gradient Accumulation Phase
         for f in range(self.num_filters):
-
-            # Calculate Bias Gradient: The sum of all output errors for this filter
-            bias_gradient: float = 0.0
-
             for i in range(out_h):
                 for j in range(out_w):
-                    # Local gradient from the next layer
+                    # Local gradient from the next layer (Pooling/ReLU)
                     grad: float = d_L_d_out[i][j][f]
-                    bias_gradient += grad
                     
                     # Backpropagate error through the convolution operation
                     for m in range(self.k):
                         for n in range(self.k):
-                            # Gradient for Weights: dL/dW = dL/dOut * Input (Chain Rule)
+                            # dL/dW = dL/dOut * Input
                             d_L_d_filters[f][m][n] += grad * self.last_input[i + m][j + n]
 
-                            # Gradient for Input: dL/dIn = dL/dOut * Weight (Chain Rule)
+                            # dL/dIn = dL/dOut * Weight
                             d_L_d_input[i + m][j + n] += grad * self.filters[f][m][n]
 
-            # SGD. Adjust bias: Move opposite to the gradient to minimize loss
+        # 2. Update Phase (SGD + L2 Regularization)
+        for f in range(self.num_filters):
+            # Calculate Bias Gradient: The sum of all output errors for this filter
+            bias_gradient: float = 0.0
+            for i in range(out_h):
+                for j in range(out_w):
+                    bias_gradient += d_L_d_out[i][j][f]
+
+            # Adjust bias
             self.biases[f] -= learning_rate * bias_gradient
 
-            # Adjust kernel weights: Subtract scaled gradient from current values
+            # Adjust kernel weights using L2 Weight Decay
             for m in range(self.k):
                 for n in range(self.k):
-                    self.filters[f][m][n] -= learning_rate * d_L_d_filters[f][m][n]
+                    # Calculate the penalty based on the current weight value
+                    l2_penalty: float = l2_lambda * self.filters[f][m][n]
+                    
+                    # Update: New_W = Old_W - (LR * (Gradient + Penalty))
+                    self.filters[f][m][n] -= learning_rate * (d_L_d_filters[f][m][n] + l2_penalty)
 
-        # Return input gradients to update previous layers
+        # Return input gradients to update previous layers (or the original image)
         return d_L_d_input

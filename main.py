@@ -66,7 +66,7 @@ def train() -> None:
     test_data = load_processed_data("test")
     
     epochs: int = 5
-    learning_rate: float = 0.001
+    learning_rate: float = 0.00001
     w_pos: float = 5.0 
     best_accuracy: float = 0.0
 

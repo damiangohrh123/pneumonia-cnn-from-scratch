@@ -12,7 +12,10 @@ def sigmoid(z: float) -> float:
     """
     # Clamping z to avoid overflow in math.exp
     z = max(-500, min(500, z))
-    return 1 / (1 + math.exp(-z))
+    s = 1 / (1 + math.exp(-z))
+
+    # Clip the output so it never hits exactly 0 or 1
+    return max(1e-15, min(1 - 1e-15, s))
 
 def sigmoid_derivative(output_val: float) -> float:
     """

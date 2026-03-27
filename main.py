@@ -65,10 +65,14 @@ def train() -> None:
     train_data = load_processed_data("train")
     test_data = load_processed_data("test")
     
-    epochs: int = 5
+    epochs: int = 20
     learning_rate: float = 0.00001
     w_pos: float = 5.0 
     best_accuracy: float = 0.0
+
+    # Early Stopping Setup
+    patience: int = 3 
+    epochs_without_improvement: int = 0
 
     print(f"Starting training on {len(train_data)} images...")
 
@@ -118,9 +122,20 @@ def train() -> None:
         print(f"\n--- Epoch {epoch+1} Results ---")
         print(f"Avg Loss: {avg_loss:.4f} | Train Acc: {train_acc:.2f}% | Test Acc: {test_acc:.2f}%")
 
+        # Early Stopping and Saving Logic
         if test_acc > best_accuracy:
             best_accuracy = test_acc
+            epochs_without_improvement = 0  # Reset counter on success
             save_model(nn)
+            print(f"New best Test Accuracy! Saving model...")
+        else:
+            epochs_without_improvement += 1
+            print(f"No improvement in Test Acc. Patience: {epochs_without_improvement}/{patience}")
+
+        if epochs_without_improvement >= patience:
+            print(f"\n[EARLY STOP] Stopping at Epoch {epoch+1} to prevent overfitting.")
+            break
+            
         print("-" * 35)
 
 if __name__ == "__main__":

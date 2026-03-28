@@ -8,3 +8,17 @@ Train Acc: 91.99%
 Test Acc: 75.16%
 Avg Loss: 2.3745
 Notes: Model is learning features but showing significant overfitting.
+
+Model Version: v2.0 (Regularized)
+Date: 28/03/2026
+Architecture: 1 Conv (8 filters, 3x3), 1 MaxPool (2x2), 1 Dense
+Key Settings: L2 Reg (0.001), Shuffling, Early Stopping (P3), He Init, Leaky ReLU
+Learning Rate: 0.00001
+
+Train Acc: 91.07% 
+Test Acc: 79.49% (Epoch 5)
+Avg Loss: 3.4004
+Notes: Reached peak performance at Epoch 5. Shuffling helped the model discover 
+better general features, increasing accuracy by 4.33% over v1.0. 
+Significant divergence observed in Epoch 6, confirming the need for 
+Early Stopping logic.

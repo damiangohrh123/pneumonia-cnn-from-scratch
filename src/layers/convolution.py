@@ -87,7 +87,7 @@ class ConvolutionLayer:
         out_w: int = len(d_L_d_out[0])
 
         # Strength of the weight penalty
-        l2_lambda: float = 0.001
+        l2_lambda: float = 0.005
         
         # Initialize gradient storage for filters [filter][row][col]
         d_L_d_filters: List[List[List[float]]] = [

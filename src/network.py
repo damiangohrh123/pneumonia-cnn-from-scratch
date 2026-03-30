@@ -15,15 +15,15 @@ class Model:
         Initializes the specific architecture for Pneumonia detection.
         """
         # Feature Extraction Stage
-        self.conv: ConvolutionLayer = ConvolutionLayer(num_filters=8, kernel_size=3)
+        self.conv: ConvolutionLayer = ConvolutionLayer(num_filters=16, kernel_size=3)
         self.pool: MaxPoolingLayer = MaxPoolingLayer(size=2)
         
         # Classification Stage (Dense input size depends on pool output)
         # For a 64x64 input: 
         # Conv (3x3) -> 62x62
         # Pool (2x2) -> 31x31
-        # 31 * 31 * 8 filters = 7688 total inputs
-        self.dense: DenseLayer = DenseLayer(input_size=7688, output_size=1)
+        # 31 * 31 * 16 filters = 15376 total inputs
+        self.dense: DenseLayer = DenseLayer(input_size=15376, output_size=1)
         
         # Cache for backpropagation
         self.last_conv_raw: List[List[List[float]]] = []
@@ -81,8 +81,8 @@ class Model:
         # Updates weights/biases in the Dense layer and returns gradient w.r.t inputs.
         d_L_d_flat = self.dense.backward([d_L_d_dense_out], learning_rate)
         
-        # 3. Unflatten back to 3D (31x31x8)
-        d_L_d_pool = unflatten(d_L_d_flat, [31, 31, 8])
+        # 3. Unflatten back to 3D (31x31x16)
+        d_L_d_pool = unflatten(d_L_d_flat, [31, 31, 16])
         
         # 4. Pooling Backward
         d_L_d_relu = self.pool.backward(d_L_d_pool)

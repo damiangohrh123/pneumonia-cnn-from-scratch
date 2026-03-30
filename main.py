@@ -71,7 +71,7 @@ def train() -> None:
     best_accuracy: float = 0.0
 
     # Early Stopping Setup
-    patience: int = 3 
+    patience: int = 5 
     epochs_without_improvement: int = 0
 
     print(f"Starting training on {len(train_data)} images...")

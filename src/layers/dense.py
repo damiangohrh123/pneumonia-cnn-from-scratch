@@ -66,7 +66,7 @@ class DenseLayer:
             The gradient with respect to the input vector (to pass back to Pooling).
         """
         # Strength of the weight penalty
-        l2_lambda: float = 0.005
+        l2_lambda: float = 0.002
 
         # Initialize the input gradient vector
         d_L_d_input: List[float] = [0.0] * self.input_size

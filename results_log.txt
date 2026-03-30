@@ -38,3 +38,18 @@ Notes: Significant drop in Test Accuracy compared to v2.0. While the Average Los
 remained much lower (1.10 vs 3.40), the high L2 penalty (0.005) likely 
 oversmoothed the weight space, preventing the model from capturing the 
 fine-grained textures needed for pneumonia detection.
+
+---------------------------------------------------------------------------------------------------------
+
+Model Version: v4.0 (High Capacity)
+Date: 29/03/2026
+Architecture: 1 Conv (16 filters, 3x3), 1 MaxPool (2x2), 1 Dense
+Key Settings: L2 Reg (0.002), He Init, Leaky ReLU, Shuffling, Early Stopping (P5)
+Learning Rate: 0.000008
+
+Train Acc: 91.56% 
+Test Acc: 83.65% (Epoch 5 Peak)
+Avg Loss: 6.1741
+Notes: Doubling the filter count from 8 to 16 provided the necessary "feature depth" 
+to identify subtle lung opacities. While the Average Loss remained high, 
+the model showed excellent stability.

@@ -14,19 +14,28 @@ class Model:
         """
         Initializes the specific architecture for Pneumonia detection.
         """
-        # Feature Extraction Stage
-        self.conv: ConvolutionLayer = ConvolutionLayer(num_filters=16, kernel_size=3)
-        self.pool: MaxPoolingLayer = MaxPoolingLayer(size=2)
+        # Convolutional Layer 1: 16 filters of size 3x3
+        self.conv1 = ConvolutionLayer(num_filters=16, kernel_size=3)
+        self.pool1 = MaxPoolingLayer(size=2)
+
+        # Convolutional Layer 2: 32 filters of size 3x3
+        # Processes the 16 channels from the previous layer
+        self.conv2 = ConvolutionLayer(num_filters=32, kernel_size=3)
+        self.pool2 = MaxPoolingLayer(size=2)
         
         # Classification Stage (Dense input size depends on pool output)
         # For a 64x64 input: 
-        # Conv (3x3) -> 62x62
-        # Pool (2x2) -> 31x31
-        # 31 * 31 * 16 filters = 15376 total inputs
-        self.dense: DenseLayer = DenseLayer(input_size=15376, output_size=1)
+        # Conv1 (3x3) -> 62x62
+        # Pool1 (2x2) -> 31x31
+        # Conv2 (3x3) -> 29x29
+        # Pool2 (2x2) -> 14x14
+        # 14 * 14 * 32 filters = 6272 total inputs
+        self.dense = DenseLayer(input_size=6272, output_size=1)
         
-        # Cache for backpropagation
-        self.last_conv_raw: List[List[List[float]]] = []
+        # Cache for backpropagation (storing raw values for both layers)
+        self.last_conv1_raw: List[List[List[float]]] = []
+        self.last_conv2_raw: List[List[List[float]]] = []
+        self.last_prediction: float = 0.0
 
     def forward(self, image_2d: List[List[float]]) -> float:
         """
@@ -38,29 +47,37 @@ class Model:
         Returns:
             The final sigmoid probability.
         """
-        # 1. Convolution
-        conv_out = self.conv.forward(image_2d)
+        # 1. First Convolution & ReLU
+        conv1_out = self.conv1.forward(image_2d)
+        self.last_conv1_raw = [[ [f for f in row] for row in channel] for channel in conv1_out]
+        for i in range(len(conv1_out)):
+            for j in range(len(conv1_out[0])):
+                for f in range(len(conv1_out[0][0])):
+                    conv1_out[i][j][f] = relu(conv1_out[i][j][f])
         
-        # 2. ReLU Activation
-        # We must store the pre-activation values for backpropagation
-        self.last_conv_raw = conv_out
-        for i in range(len(conv_out)):
-            for j in range(len(conv_out[0])):
-                for f in range(len(conv_out[0][0])):
-                    conv_out[i][j][f] = relu(conv_out[i][j][f])
+        # 2. First Max Pooling
+        pool1_out = self.pool1.forward(conv1_out)
+
+        # 3. Second Convolution & ReLU
+        conv2_out = self.conv2.forward(pool1_out)
+        self.last_conv2_raw = [[ [f for f in row] for row in channel] for channel in conv2_out]
+        for i in range(len(conv2_out)):
+            for j in range(len(conv2_out[0])):
+                for f in range(len(conv2_out[0][0])):
+                    conv2_out[i][j][f] = relu(conv2_out[i][j][f])
+
+        # 4. Second Max Pooling
+        pool2_out = self.pool2.forward(conv2_out)
         
-        # 3. Max Pooling
-        pool_out = self.pool.forward(conv_out)
+        # 5. Flattening (Now 14x14x32)
+        flat_out = flatten(pool2_out)
         
-        # 4. Flattening
-        flat_out = flatten(pool_out)
-        
-        # 5. Dense Layer & Sigmoid
+        # 6. Dense Layer & Sigmoid
         dense_out = self.dense.forward(flat_out)
+        dense_out = [max(-10, min(10, x)) for x in dense_out]  # Clamp inputs to sigmoid
         prediction = sigmoid(dense_out[0])
         
         self.last_prediction = prediction
-
         return prediction
 
     def backward(self, d_L_d_pred: float, learning_rate: float) -> None:
@@ -73,28 +90,34 @@ class Model:
         """
         # 1. Output Activation Backpropagation
         # The gradient must pass through the Sigmoid derivative: s(z) * (1 - s(z))
-        # This converts the loss gradient into the error signal for the Dense layer.
-        sig_grad = (self.last_prediction * (1.0 - self.last_prediction)) + 0.01  # Add small value (0.01) to prevent zero gradient
+        sig_grad = (self.last_prediction * (1.0 - self.last_prediction)) + 1e-6
         d_L_d_dense_out = d_L_d_pred * sig_grad
 
         # 2. Dense Layer Backpropagation
-        # Updates weights/biases in the Dense layer and returns gradient w.r.t inputs.
         d_L_d_flat = self.dense.backward([d_L_d_dense_out], learning_rate)
         
-        # 3. Unflatten back to 3D (31x31x16)
-        d_L_d_pool = unflatten(d_L_d_flat, [31, 31, 16])
+        # 3. Unflatten back to 3D (14x14x32)
+        d_L_d_pool2 = unflatten(d_L_d_flat, [14, 14, 32])
         
-        # 4. Pooling Backward
-        d_L_d_relu = self.pool.backward(d_L_d_pool)
+        # 4. Second Pooling & Leaky ReLU Backward
+        d_L_d_relu2 = self.pool2.backward(d_L_d_pool2)
+        for i in range(len(d_L_d_relu2)):
+            for j in range(len(d_L_d_relu2[0])):
+                for f in range(len(d_L_d_relu2[0][0])):
+                    raw_val = self.last_conv2_raw[i][j][f]
+                    d_L_d_relu2[i][j][f] *= relu_derivative(raw_val)
         
-        # 5. Leaky ReLU Backward
-        # Instead of setting gradients to 0 for negative values, we multiply by the derivative (0.01) to keep the 'dead' neurons learning.
-        for i in range(len(d_L_d_relu)):
-            for j in range(len(d_L_d_relu[0])):
-                for f in range(len(d_L_d_relu[0][0])):
-                    # Use the stored raw convolution values to find the gradient
-                    raw_val = self.last_conv_raw[i][j][f]
-                    d_L_d_relu[i][j][f] *= relu_derivative(raw_val)
+        # 5. Second Convolution Backward
+        # Returns the gradient for the output of Pool1 (31x31x16)
+        d_L_d_pool1 = self.conv2.backward(d_L_d_relu2, learning_rate)
+
+        # 6. First Pooling & Leaky ReLU Backward
+        d_L_d_relu1 = self.pool1.backward(d_L_d_pool1)
+        for i in range(len(d_L_d_relu1)):
+            for j in range(len(d_L_d_relu1[0])):
+                for f in range(len(d_L_d_relu1[0][0])):
+                    raw_val = self.last_conv1_raw[i][j][f]
+                    d_L_d_relu1[i][j][f] *= relu_derivative(raw_val)
         
-        # 6. Convolution Backward
-        self.conv.backward(d_L_d_relu, learning_rate)
+        # 7. First Convolution Backward
+        self.conv1.backward(d_L_d_relu1, learning_rate)

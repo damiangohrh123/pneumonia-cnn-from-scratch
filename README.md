@@ -143,10 +143,72 @@ $$
 Once we have the loss gradient, it must pass through the Sigmoid activation function to reach the raw scores ($z$). We use the Chain Rule to multiply the loss gradient by the sigmoid derivative:
 
 $$
-\text{Local Gradient} = \frac{\partial L}{\partial \hat{y}} \cdot \frac{\partial \hat{y}}{\partial z}
+\text{Activation Gradient} = \frac{\partial L}{\partial \hat{y}} \cdot \frac{\partial \hat{y}}{\partial z}
 $$
 
-### 5.4 Backpropagating through Pooling and ReLU
+The sigmoid gradient is given by the formula:
+
+$$
+\frac{\partial \hat{y}}{\partial z} = \hat{y} \cdot (1 - \hat{y})
+$$
+
+Here, $\hat{y}$ is the output of the sigmoid function, $\hat{y} = \frac{1}{1 + e^{-z}}$, and $z$ is the input to the sigmoid function.
+
+
+### 5.4 Gradient of the Logit with Respect to Weights 
+
+In a dense layer, the logit $z$ is calculated as:
+$$
+z = \sum_{i} w_i \cdot x_i + b
+$$
+
+The gradient of $z$ with respect to a specific weight $w$ is:
+$$
+\frac{\partial z}{\partial w} = x
+$$
+
+Here, $x$ is the input value connected to the weight $w$. This relationship is used during backpropagation to adjust the weights based on the gradient of the loss.
+
+### 5.5 Full Gradient Formula
+
+To calculate the gradient of the loss with respect to a weight $w$, we combine all the components derived earlier. The full formula is:
+
+$$
+\frac{\partial L}{\partial w} = \frac{\partial L}{\partial \hat{y}} \cdot \frac{\partial \hat{y}}{\partial z} \cdot \frac{\partial z}{\partial w}
+$$
+
+Expanding each term:
+
+1. **Loss Gradient with Respect to Prediction ($\frac{\partial L}{\partial \hat{y}}$):**
+   $$
+   \frac{\partial L}{\partial \hat{y}} = \begin{cases} 
+   -\frac{w_{pos}}{\hat{y}} & \text{if } y = 1 \\
+   \frac{1}{1 - \hat{y}} & \text{if } y = 0
+   \end{cases}
+   $$
+
+2. **Sigmoid Gradient ($\frac{\partial \hat{y}}{\partial z}$):**
+   $$
+   \frac{\partial \hat{y}}{\partial z} = \hat{y} \cdot (1 - \hat{y})
+   $$
+
+3. **Logit Gradient with Respect to Weight ($\frac{\partial z}{\partial w}$):**
+   $$
+   \frac{\partial z}{\partial w} = x
+   $$
+
+Combining these, the full gradient becomes:
+
+$$
+\frac{\partial L}{\partial w} = \begin{cases} 
+-\frac{w_{pos}}{\hat{y}} \cdot \hat{y} \cdot (1 - \hat{y}) \cdot x & \text{if } y = 1 \\
+\frac{1}{1 - \hat{y}} \cdot \hat{y} \cdot (1 - \hat{y}) \cdot x & \text{if } y = 0
+\end{cases}
+$$
+
+This formula captures the complete gradient calculation for updating a weight $w$ during backpropagation.
+
+### 5.6 Backpropagating through Pooling and ReLU
 When the error signal reaches a Max Pooling layer, it encounters a unique challenge: pooling layers do not have weights. Their only job during the forward pass was to select the maximum value from each $2 \times 2$ window. Because there are no weights to adjust, the layer's role in backpropagation is simply to route the error signal back to the correct location. During the forward pass, the network records an argmax mask (a temporary record of which position in each $2 \times 2$ window produced the maximum value). When the error signal travels backward, it is routed exclusively to that position. The three other pixels in each window were discarded during the forward pass and therefore had no influence on the final prediction, so they receive a gradient of zero. The gradient of the loss with respect to the input of the pooling layer $A$ is defined by the following piecewise function:
 
 $$
@@ -190,7 +252,7 @@ Where:
 
 It is this value, $\frac{\partial L}{\partial z_{i,j}}$, that is passed back into section 5.3 as the incoming error signal for computing the convolutional gradients.
 
-### 5.5 Convolutional Gradients (Updating the Kernels)
+### 5.7 Convolutional Gradients (Updating the Kernels)
 The most critical part of the learning process is updating the convolutional filters ($K$). Unlike a standard dense layer where a weight is only responsible for one connection, a convolutional weight is reused across the entire image. Therefore, its gradient must be the sum of its contribution at every position it visited during the forward pass. To find the gradient for a specific weight within a $3 \times 3$ kernel, we use a double summation to accumulate error across the entire height and width of the feature map. Mathematically, the gradient for a kernel weight at position $(m, n)$ is:
 
 $$
@@ -219,7 +281,7 @@ $$
 
 Each weight is adjusted independently by its own gradient. A weight that contributed heavily to the loss receives a large update, while a weight that had little influence receives a small one.
 
-### 5.6 Passing Error to Previous Feature Maps
+### 5.8 Passing Error to Previous Feature Maps
 Once the kernel weights have been updated, $\frac{\partial L}{\partial z_{i,j}}$​ is spent for the second time now to compute how much error each input pixel in the current layer's input feature map contributed to the loss. This is necessary so that any earlier convolutional layers have an error signal to backpropagate through in turn.
 
 To understand why this requires a flipped kernel, consider what happened during the forward pass. As the kernel slid across the input, each input pixel was touched by a different kernel weight depending on the kernel's position. Taking pixel $e$ as an example:

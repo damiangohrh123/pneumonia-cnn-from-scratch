@@ -47,32 +47,38 @@ class Model:
         Returns:
             The final sigmoid probability.
         """
-        # 1. First Convolution & ReLU
+        # --------- BLOCK 1: Feature Extraction (Low-level features) ---------
+        # Convolution: output shape is (16, 62, 62) -> 16 feature maps, each 62x62 pixels
         conv1_out = self.conv1.forward(image_2d)
-        self.last_conv1_raw = [[ [f for f in row] for row in channel] for channel in conv1_out]
+        self.last_conv1_raw = [[ [f for f in row] for row in channel] for channel in conv1_out]  # Save to cache for backpropagation
+
+        # Apply the ReLU function to every single data point
         for i in range(len(conv1_out)):
             for j in range(len(conv1_out[0])):
                 for f in range(len(conv1_out[0][0])):
                     conv1_out[i][j][f] = relu(conv1_out[i][j][f])
         
-        # 2. First Max Pooling
+        # Max Pooling
         pool1_out = self.pool1.forward(conv1_out)
 
-        # 3. Second Convolution & ReLU
+        # --------- BLOCK 2: Feature Extraction (Mid-level features) ---------
+        # Convolution: output shape is (32, 29, 29) -> 32 feature maps, each 29x29 pixels
         conv2_out = self.conv2.forward(pool1_out)
-        self.last_conv2_raw = [[ [f for f in row] for row in channel] for channel in conv2_out]
+        self.last_conv2_raw = [[ [f for f in row] for row in channel] for channel in conv2_out]  # Save to cache for backpropagation
+
+        # Apply the ReLU function to every single data point
         for i in range(len(conv2_out)):
             for j in range(len(conv2_out[0])):
                 for f in range(len(conv2_out[0][0])):
                     conv2_out[i][j][f] = relu(conv2_out[i][j][f])
 
-        # 4. Second Max Pooling
+        # Max Pooling
         pool2_out = self.pool2.forward(conv2_out)
         
-        # 5. Flattening (Now 14x14x32)
+        # Flattening (Now 14x14x32)
         flat_out = flatten(pool2_out)
         
-        # 6. Dense Layer & Sigmoid
+        # Dense Layer & Sigmoid
         dense_out = self.dense.forward(flat_out)
         dense_out = [max(-10, min(10, x)) for x in dense_out]  # Clamp inputs to sigmoid
         prediction = sigmoid(dense_out[0])
@@ -88,18 +94,19 @@ class Model:
             d_L_d_pred: The initial gradient from the loss function.
             learning_rate: The speed of optimization.
         """
-        # 1. Output Activation Backpropagation
         # The gradient must pass through the Sigmoid derivative: s(z) * (1 - s(z))
-        sig_grad = (self.last_prediction * (1.0 - self.last_prediction)) + 1e-6
+        sig_grad = (self.last_prediction * (1.0 - self.last_prediction)) + 1e-6  # Small epsilon to prevent zero gradient
+
+        # Take the initial error and multiply by the sigmoid gradient
         d_L_d_dense_out = d_L_d_pred * sig_grad
 
-        # 2. Dense Layer Backpropagation
+        # Dense Layer Backpropagation
         d_L_d_flat = self.dense.backward([d_L_d_dense_out], learning_rate)
         
-        # 3. Unflatten back to 3D (14x14x32)
+        # Unflatten back to 3D (14x14x32)
         d_L_d_pool2 = unflatten(d_L_d_flat, [14, 14, 32])
         
-        # 4. Second Pooling & Leaky ReLU Backward
+        # Second Pooling & Leaky ReLU Backward
         d_L_d_relu2 = self.pool2.backward(d_L_d_pool2)
         for i in range(len(d_L_d_relu2)):
             for j in range(len(d_L_d_relu2[0])):
@@ -107,11 +114,10 @@ class Model:
                     raw_val = self.last_conv2_raw[i][j][f]
                     d_L_d_relu2[i][j][f] *= relu_derivative(raw_val)
         
-        # 5. Second Convolution Backward
-        # Returns the gradient for the output of Pool1 (31x31x16)
+        # Second Convolution Backward. Returns the gradient for the output of Pool1 (31x31x16)
         d_L_d_pool1 = self.conv2.backward(d_L_d_relu2, learning_rate)
 
-        # 6. First Pooling & Leaky ReLU Backward
+        # First Pooling & Leaky ReLU Backward
         d_L_d_relu1 = self.pool1.backward(d_L_d_pool1)
         for i in range(len(d_L_d_relu1)):
             for j in range(len(d_L_d_relu1[0])):
@@ -119,5 +125,5 @@ class Model:
                     raw_val = self.last_conv1_raw[i][j][f]
                     d_L_d_relu1[i][j][f] *= relu_derivative(raw_val)
         
-        # 7. First Convolution Backward
+        # First Convolution Backward
         self.conv1.backward(d_L_d_relu1, learning_rate)

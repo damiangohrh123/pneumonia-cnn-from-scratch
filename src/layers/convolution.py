@@ -1,15 +1,16 @@
 import random
-from typing import List
+from typing import List, Union, Any
 
 class ConvolutionLayer:
     """
-    Performs a 2D convolution operation on a single-channel (grayscale) image.
-    Uses a set of learnable kernels to extract features.
+    Performs a 3D convolution operation. 
+    Can handle single-channel images (2D) or multi-channel feature maps (3D).
     """
 
     def __init__(self, num_filters: int, kernel_size: int):
         """
-        Initializes filters and biases with small random values.
+        Sets the filter configuration. Actual weight initialization is 
+        deferred to the first forward pass once input depth is known.
         
         Args:
             num_filters: How many different feature maps to produce.
@@ -18,121 +19,147 @@ class ConvolutionLayer:
         self.num_filters: int = num_filters
         self.k: int = kernel_size
         
-        # Initialize filters: List[filter_index][row][col]
-        self.filters: List[List[List[float]]] = [
-            [[random.uniform(-0.1, 0.1) for _ in range(kernel_size)] 
-             for _ in range(kernel_size)] for _ in range(num_filters)
-        ]
+        # Structure: [filter_index][channel_index][row][col]
+        self.filters: List[List[List[List[float]]]] = []
         self.biases: List[float] = [0.0] * num_filters
         
-        # Cache for backpropagation
-        self.last_input: List[List[float]] = []
-
-    def forward(self, input_2d: List[List[float]]) -> List[List[List[float]]]:
+        # Cache to store the input for backpropagation
+        self.last_input: Union[List[List[float]], List[List[List[float]]]] = []
+    
+    def _init_filters(self, depth: int):
         """
-        Scans the input image with kernels to produce feature maps.
+        Initializes weights using He (Kaiming) Normal Initialization.
         
-        Args:
-            input_2d: The grayscale image or previous feature map.
-            
-        Returns:
-            A 3D list where the 3rd dimension represents different filters.
+        This prevents the 'Vanishing Gradient' problem by scaling weights 
+        based on the number of input connections (fan-in).
         """
-        self.last_input = input_2d
-        in_h: int = len(input_2d)
-        in_w: int = len(input_2d[0])
-        
-        # Output dimensions: (N - K + 1)
-        out_h: int = in_h - self.k + 1
-        out_w: int = in_w - self.k + 1
-        
-        # Initialize 3D output: [row][col][filter]
-        output: List[List[List[float]]] = [
-            [[0.0 for _ in range(self.num_filters)] for _ in range(out_w)] 
-            for _ in range(out_h)
+        # fan-in = (kernel_width * kernel_height * input_channels)
+        # He initialization scale: sqrt(2 / fan-in)
+        scale = (2.0 / (self.k * self.k * depth)) ** 0.5
+    
+        self.filters = [
+            [[[random.gauss(0, scale) for _ in range(self.k)]  # Dimension 4: kernel row
+                for _ in range(self.k)]                        # Dimension 3: kernel column                                               
+                for _ in range(depth)]                         # Dimension 2: input channels        
+                for _ in range(self.num_filters)               # Dimension 1: number of filters
         ]
 
-        # Iterate through each filter in the layer
-        for f in range(self.num_filters):
-            # Slide the filter vertically across the image (rows)
-            for i in range(out_h):
-                # Slide the filter horizontally across the image (columns)
-                for j in range(out_w):
+    def forward(self, input_data: Any) -> List[List[List[float]]]:
+        """
+        Scans the input (image or feature map) with 3D kernels.
+        
+        Args:
+            input_data: A 2D grayscale image or a 3D feature map [row][col][channel].
+            
+        Returns:
+            A 3D list where the 3rd dimension represents the new filter set.
+        """
+        self.last_input = input_data
+        
+        # 1. Determine if input is 2D (Image) or 3D (Feature Map)
+        # This allows the layer to be used at the start (1 channel) or deep in the stack (e.g., 16 channels).
+        if isinstance(input_data[0][0], list):
+            # If it's 3D [row][col][channel] (Channel-Last format)
+            in_h, in_w, in_d = len(input_data), len(input_data[0]), len(input_data[0][0])
+        else:
+            # If it's 2D [row][col]. We reshape to 3D for consistent math across layers.
+            in_h, in_w = len(input_data), len(input_data[0])
+            in_d = 1
+            input_data = [[ [pixel] for pixel in row] for row in input_data]
+
+        # 2. Delayed Weight Initialization. We wait until the first pass to know the 'in_d' (depth) of our filters.
+        if not self.filters:
+            self._init_filters(in_d)
+
+        # 3. Calculate Output Dimensions. Standard convolution output formula: (Input_Dim - Kernel_Size + 1)
+        out_h, out_w = in_h - self.k + 1, in_w - self.k + 1
+        
+        # Initialize 3D output: [height (out_h)][width (out_w)][channels (num_filters)]
+        output = [[[0.0 for _ in range(self.num_filters)] for _ in range(out_w)] for _ in range(out_h)]
+
+        # 4. The 3D Convolution Operation
+        for f in range(self.num_filters):            # Loop over each filter
+            for i in range(out_h):                   # Loop over output height
+                for j in range(out_w):               # Loop over output width
+                    summ = 0.0
+                    for c in range(in_d):            # Loop over input channels
+                        for m in range(self.k):      # Loop over kernel height
+                            for n in range(self.k):  # Loop over kernel width
+                                # weight format: [filter][channel][row][col]
+                                summ += input_data[i + m][j + n][c] * self.filters[f][c][m][n]
                     
-                    # Iterate through the kernel's area and sum the weights into a scalar
-                    summ: float = 0.0
-                    for m in range(self.k):
-                        for n in range(self.k):
-                            summ += input_2d[i + m][j + n] * self.filters[f][m][n]
-                    
-                    # Store the result in the feature map and add the learned bias
-                    # Resulting shape is [row][col][filter] (Channel-Last format)
+                    # Store result and add the unique bias for this filter
                     output[i][j][f] = summ + self.biases[f]
         return output
 
-    def backward(self, d_L_d_out: List[List[List[float]]], learning_rate: float) -> List[List[float]]:
+    def backward(self, d_L_d_out: List[List[List[float]]], learning_rate: float) -> Any: 
         """
         Calculates gradients for kernels and passes error back to input with L2 regularization.
+        Handles both 2D (initial image) and 3D (feature map) inputs.
         
         Args:
             d_L_d_out: The gradient of the loss with respect to this layer's output.
             learning_rate: Factor to scale the weight updates.
             
         Returns:
-            The gradient with respect to the input image (to pass to previous layers).
+            The gradient with respect to the input (to pass to previous layers).
         """
-        in_h: int = len(self.last_input)
-        in_w: int = len(self.last_input[0])
-        out_h: int = len(d_L_d_out)
-        out_w: int = len(d_L_d_out[0])
+        # Check if the pixel is a single value (2D image) or a list of features (3D map)
+        is_2d_input = not isinstance(self.last_input[0][0], list)
 
-        # Strength of the weight penalty
-        l2_lambda: float = 0.002
+        # Standardize input to 3D: If 2D [row][col], wrap pixels to create [row][col][1 channel]
+        curr_input = [[ [p] for p in row] for row in self.last_input] if is_2d_input else self.last_input
         
-        # Initialize gradient storage for filters [filter][row][col]
-        d_L_d_filters: List[List[List[float]]] = [
-            [[0.0 for _ in range(self.k)] for _ in range(self.k)] 
-            for _ in range(self.num_filters)
-        ]
+        in_h, in_w, in_d = len(curr_input), len(curr_input[0]), len(curr_input[0][0])
+        out_h, out_w = len(d_L_d_out), len(d_L_d_out[0])
+        
+        # L2 Regularization Hyperparameter (prevents overfitting by penalizing large weights)
+        l2_lambda = 0.0001 
 
-        # Initialize gradient storage for the input image [row][col]
-        d_L_d_input: List[List[float]] = [[0.0 for _ in range(in_w)] for _ in range(in_h)]
+        # Initialize Gradients
+        # Empty 4D list to store weight gradient updates: [filter][channel][row][col]
+        d_L_d_filters = [[[[0.0 for _ in range(self.k)] for _ in range(self.k)] for _ in range(in_d)] for _ in range(self.num_filters)]
 
-        # 1. Gradient Accumulation Phase
+        # Empty 3D list to store error for the previous layer: [height][width][depth]
+        d_L_d_input = [[[0.0 for _ in range(in_d)] for _ in range(in_w)] for _ in range(in_h)]
+
+        # Backpropagation through Convolution
         for f in range(self.num_filters):
             for i in range(out_h):
                 for j in range(out_w):
-                    # Local gradient from the next layer (Pooling/ReLU)
-                    grad: float = d_L_d_out[i][j][f]
+                    # The incoming gradient from the next layer for this specific filter/pixel
+                    grad = d_L_d_out[i][j][f]
                     
-                    # Backpropagate error through the convolution operation
-                    for m in range(self.k):
-                        for n in range(self.k):
-                            # dL/dW = dL/dOut * Input
-                            d_L_d_filters[f][m][n] += grad * self.last_input[i + m][j + n]
+                    # Clipping to prevent explosion (Optional but can help with stability)
+                    grad = max(-5.0, min(5.0, grad))
 
-                            # dL/dIn = dL/dOut * Weight
-                            d_L_d_input[i + m][j + n] += grad * self.filters[f][m][n]
+                    for c in range(in_d):
+                        for m in range(self.k):
+                            for n in range(self.k):
+                                # dL/dW: How much this specific weight contributed to the error
+                                d_L_d_filters[f][c][m][n] += grad * curr_input[i + m][j + n][c]
+                                
+                                # dL/dX: Pass error to the previous layer
+                                d_L_d_input[i + m][j + n][c] += grad * self.filters[f][c][m][n]
 
-        # 2. Update Phase (SGD + L2 Regularization)
+        # Update Weights and Biases
         for f in range(self.num_filters):
-            # Calculate Bias Gradient: The sum of all output errors for this filter
-            bias_gradient: float = 0.0
-            for i in range(out_h):
-                for j in range(out_w):
-                    bias_gradient += d_L_d_out[i][j][f]
+            # Sum up total gradient for this filter then update bias
+            bias_grad = sum(d_L_d_out[i][j][f] for i in range(out_h) for j in range(out_w))
+            self.biases[f] -= learning_rate * max(-1.0, min(1.0, bias_grad))
+            
+            # Update Filters
+            for c in range(in_d):
+                for m in range(self.k):
+                    for n in range(self.k):
+                        # Regularization: Apply L2 "Weight Decay" to prevent overfitting
+                        total_grad = d_L_d_filters[f][c][m][n] + (l2_lambda * self.filters[f][c][m][n])
+                        
+                        # Move weights in opposite direction of error (with a safety cap)
+                        self.filters[f][c][m][n] -= learning_rate * max(-2.0, min(2.0, total_grad))
 
-            # Adjust bias
-            self.biases[f] -= learning_rate * bias_gradient
-
-            # Adjust kernel weights using L2 Weight Decay
-            for m in range(self.k):
-                for n in range(self.k):
-                    # Calculate the penalty based on the current weight value
-                    l2_penalty: float = l2_lambda * self.filters[f][m][n]
-                    
-                    # Update: New_W = Old_W - (LR * (Gradient + Penalty))
-                    self.filters[f][m][n] -= learning_rate * (d_L_d_filters[f][m][n] + l2_penalty)
-
-        # Return input gradients to update previous layers (or the original image)
-        return d_L_d_input
+        # Return error map matched to the original input shape
+        if is_2d_input:
+            # Flatten 3D [H][W][1] back to 2D [H][W] for the previous layer
+            return [[channel[0] for channel in row] for row in d_L_d_input]
+        return d_L_d_input  # Keep as 3D if the input was originally a feature map

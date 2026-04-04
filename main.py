@@ -3,7 +3,7 @@ import json
 import random
 from typing import List, Tuple
 from src.network import Model
-from src.utils.loss import weighted_binary_cross_entropy, loss_derivative
+from src.utils.loss import huber_loss, huber_loss_derivative
 
 def load_processed_data(data_type: str) -> List[Tuple[List[List[float]], int]]:
     """
@@ -32,10 +32,11 @@ def load_processed_data(data_type: str) -> List[Tuple[List[List[float]], int]]:
     return dataset
 
 def save_model(model: Model, filename: str = "best_pneumonia_model.json") -> None:
-    """Saves weights and biases to a JSON file."""
     data = {
-        "conv_filters": model.conv.filters,
-        "conv_biases": model.conv.biases,
+        "conv1_filters": model.conv1.filters,
+        "conv1_biases": model.conv1.biases,
+        "conv2_filters": model.conv2.filters,
+        "conv2_biases": model.conv2.biases,
         "dense_weights": model.dense.weights,
         "dense_biases": model.dense.biases
     }
@@ -66,8 +67,8 @@ def train() -> None:
     test_data = load_processed_data("test")
     
     epochs: int = 20
-    learning_rate: float = 0.000005
-    w_pos: float = 5.0 
+    learning_rate: float = 0.0025
+    w_pos: float = 2.0 
     best_accuracy: float = 0.0
 
     # Early Stopping Setup
@@ -87,13 +88,13 @@ def train() -> None:
 
             # Forward & Backward Pass
             prediction = nn.forward(image)
-            loss = weighted_binary_cross_entropy(label, prediction, w_pos)
+            loss = huber_loss(label, prediction)
             total_loss += loss
             
             if (1 if prediction > 0.5 else 0) == label:
                 correct_train += 1
             
-            d_loss = loss_derivative(label, prediction, w_pos)
+            d_loss = huber_loss_derivative(label, prediction)
             nn.backward(d_loss, learning_rate)
 
             # Debug Prints every 100 images

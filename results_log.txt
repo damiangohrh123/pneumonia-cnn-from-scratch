@@ -53,3 +53,21 @@ Avg Loss: 6.1741
 Notes: Doubling the filter count from 8 to 16 provided the necessary "feature depth" 
 to identify subtle lung opacities. While the Average Loss remained high, 
 the model showed excellent stability.
+
+---------------------------------------------------------------------------------------------------------
+
+Model Version: v5.0 (Dual Conv)
+Date: 05/04/2026
+Architecture: 2 Conv Layers (Custom), 1 MaxPool, 1 Dense
+Key Settings: Huber Loss (Robust to outliers), Early Stopping (P5), 
+              Progressive Shuffling, Weight Tracking Debugger
+Learning Rate: 0.0025
+
+Train Acc: 97.87% 
+Test Acc: 80.45% (Epoch 4 Peak)
+Avg Loss: 0.0085 (Final)
+Notes: Switched to a deeper 2-Conv architecture. The use of Huber Loss instead of 
+MSE/Cross-Entropy appears to have stabilized the gradients significantly, 
+allowing for a much higher learning rate (0.0025) without exploding. While training 
+has 97.87% accuracy, the 80% test bottleneck suggests that the model is now 
+over-parameterized for the current dataset size, leading to rapid overfitting after Epoch 4.

@@ -35,10 +35,13 @@ class ConvolutionLayer:
         """
         # fan-in = (kernel_width * kernel_height * input_channels)
         # He initialization scale: sqrt(2 / fan-in)
-        scale = (2.0 / (self.k * self.k * depth)) ** 0.5
+        he_scale = (2.0 / (self.k * self.k * depth)) ** 0.5
+
+        # Apply an additional "Safety Factor" (0.1 or 0.01) to prevent immediate Sigmoid saturation
+        tuned_scale = he_scale * 0.1
     
         self.filters = [
-            [[[random.gauss(0, scale) for _ in range(self.k)]  # Dimension 4: kernel row
+            [[[random.gauss(0, tuned_scale) for _ in range(self.k)]  # Dimension 4: kernel row
                 for _ in range(self.k)]                        # Dimension 3: kernel column                                               
                 for _ in range(depth)]                         # Dimension 2: input channels        
                 for _ in range(self.num_filters)               # Dimension 1: number of filters

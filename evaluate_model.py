@@ -3,10 +3,10 @@ import os
 import sys
 from typing import List, Tuple
 from src.network import Model
+from src.utils.loss import huber_loss
 
 """
-NOTE: This evaluation script is designed specifically for Model Architecture v5.0+ 
-(Dual Convolutional Layers). 
+NOTE: This evaluation script is designed specifically for Model Architecture v5.0+ (Dual Convolutional Layers). 
 
 To evaluate v1-v4 (Single Conv), you must manually revert the Model() class 
 in src/network.py to the older architecture to avoid shape mismatch errors.
@@ -53,8 +53,8 @@ def run_final_eval(model_path: str):
         nn.dense.biases = weights["dense_biases"]
         print("Weights successfully loaded!")
 
-    except FileNotFoundError:
-        print(f"Error: {model_path} not found in this directory.")
+    except (FileNotFoundError, KeyError) as e:
+        print(f"Error loading model: {e}")
         return
 
     # 3. Load the Test Data
@@ -63,11 +63,17 @@ def run_final_eval(model_path: str):
     
     # 4. Run the Evaluation
     correct = 0
+    total_loss = 0.0
     total = len(test_data)
     
     print(f"Evaluating on {total} images...")
     for i, (image, label) in enumerate(test_data):
         prediction = nn.forward(image)
+
+        # Calculate loss
+        total_loss += huber_loss(label, prediction)
+
+        # Calculate accuracy
         pred_label = 1 if prediction > 0.5 else 0
         if pred_label == label:
             correct += 1
@@ -77,8 +83,11 @@ def run_final_eval(model_path: str):
             print(f"Processed {i}/{total}...")
 
     final_acc = (correct / total) * 100
+    avg_loss = total_loss / total
+
     print("\n" + "="*30)
     print(f"FINAL TEST ACCURACY: {final_acc:.2f}%")
+    print(f"AVERAGE LOSS: {avg_loss:.4f}")
     print("="*30)
 
 if __name__ == "__main__":

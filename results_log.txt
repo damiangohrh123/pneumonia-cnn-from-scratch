@@ -18,7 +18,7 @@ Key Settings: L2 Reg (0.001), Shuffling, Early Stopping (P3), He Init, Leaky ReL
 Learning Rate: 0.00001
 
 Train Acc: 91.07% 
-Test Acc: 79.49% (Epoch 5)
+Test Acc: 79.49%
 Avg Loss: 3.4004
 Notes: Reached peak performance at Epoch 5. Shuffling helped the model discover 
 better general features, increasing accuracy by 4.33% over v1.0. 
@@ -32,7 +32,7 @@ Key Settings: L2 Reg (0.005), Learning Rate (0.000005), Shuffling, Patience (P4)
 Learning Rate: 0.000005
 
 Train Acc: 92.06% 
-Test Acc: 67.79% (Epoch 2)
+Test Acc: 67.79%
 Avg Loss: 1.1001
 Notes: Significant drop in Test Accuracy compared to v2.0. While the Average Loss 
 remained much lower (1.10 vs 3.40), the high L2 penalty (0.005) likely 
@@ -48,7 +48,7 @@ Key Settings: L2 Reg (0.002), He Init, Leaky ReLU, Shuffling, Early Stopping (P5
 Learning Rate: 0.000008
 
 Train Acc: 91.56% 
-Test Acc: 83.65% (Epoch 5 Peak)
+Test Acc: 83.65%
 Avg Loss: 6.1741
 Notes: Doubling the filter count from 8 to 16 provided the necessary "feature depth" 
 to identify subtle lung opacities. While the Average Loss remained high, 
@@ -58,16 +58,35 @@ the model showed excellent stability.
 
 Model Version: v5.0 (Dual Conv)
 Date: 05/04/2026
-Architecture: 2 Conv Layers (Custom), 1 MaxPool, 1 Dense
+Architecture: 2 Conv Layers (Custom), 2 MaxPool, 1 Dense
 Key Settings: Huber Loss (Robust to outliers), Early Stopping (P5), 
               Progressive Shuffling, Weight Tracking Debugger
 Learning Rate: 0.0025
 
 Train Acc: 97.87% 
-Test Acc: 80.45% (Epoch 4 Peak)
-Avg Loss: 0.0085 (Final)
+Test Acc: 80.45%
+Avg Loss: 0.0785
 Notes: Switched to a deeper 2-Conv architecture. The use of Huber Loss instead of 
 MSE/Cross-Entropy appears to have stabilized the gradients significantly, 
 allowing for a much higher learning rate (0.0025) without exploding. While training 
 has 97.87% accuracy, the 80% test bottleneck suggests that the model is now 
 over-parameterized for the current dataset size, leading to rapid overfitting after Epoch 4.
+
+---------------------------------------------------------------------------------------------------------
+
+Model Version: v6.0 (Augmented & Weighted)
+Date: 07/04/2026
+Architecture: 2 Conv Layers (Custom), 2 MaxPool, 1 Dense
+Key Settings: Data Augmentation (Horizontal Flip, Random Shift ±2px), 
+              Class Weighting (w_pos=2.0 for Normal), Huber Loss, 
+              Early Stopping (P5)
+Learning Rate: 0.0025
+
+Train Acc: 92.73% 
+Test Acc: 86.22%
+Avg Loss: 0.0566
+Notes: By introducing Data Augmentation, the model was forced to learn invariant features 
+of pneumonia rather than pixel-specific locations, successfully closing the 
+overfitting gap from 17% (v5.0) down to ~6.5%. The addition of Class Weighting 
+(w_pos) effectively counteracted the 3:1 dataset imbalance, preventing the 
+majority-class bias seen in earlier versions.

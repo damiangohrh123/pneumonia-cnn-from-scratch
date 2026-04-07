@@ -5,6 +5,34 @@ from typing import List, Tuple
 from src.network import Model
 from src.utils.loss import huber_loss, huber_loss_derivative
 
+def augment_image(image_data: List[List[float]]) -> List[List[float]]:
+    """Applies random transformations to the image."""
+
+    # Create a deep copy so we don't ruin the original training set
+    current_image = [row[:] for row in image_data] 
+    
+    rows = len(current_image)
+    cols = len(current_image[0])
+    
+    # 50% chance to flip horizontally
+    if random.random() > 0.5:
+            current_image = [row[::-1] for row in current_image]
+        
+    # Small random pixel shift (Translation)
+    # This prevents the model from relying on exact pixel coordinates
+    shift_x = random.randint(-2, 2)
+    shift_y = random.randint(-2, 2)
+    
+    # Simple shift implementation
+    new_image = [[0.0 for _ in range(cols)] for _ in range(rows)]
+    for r in range(rows):
+        for c in range(cols):
+            old_r, old_c = r + shift_y, c + shift_x
+            if 0 <= old_r < rows and 0 <= old_c < cols:
+                new_image[r][c] = current_image[old_r][old_c]
+                
+    return new_image
+
 def load_processed_data(data_type: str) -> List[Tuple[List[List[float]], int]]:
     """
     Loads the pre-processed JSON images and their labels.
@@ -65,6 +93,12 @@ def train() -> None:
     nn = Model()
     train_data = load_processed_data("train")
     test_data = load_processed_data("test")
+
+    # Count the classes
+    zeros = sum(1 for _, label in train_data if label == 0)
+    ones = sum(1 for _, label in train_data if label == 1)
+
+    print(f"Dataset Stats: Normal (0): {zeros} | Pneumonia (1): {ones}")
     
     epochs: int = 20
     learning_rate: float = 0.0025
@@ -83,11 +117,14 @@ def train() -> None:
         correct_train: int = 0
 
         for i, (image, label) in enumerate(train_data):
+            # Do augmentation on training images
+            augmented_image = augment_image(image)
+
             # Capture weights BEFORE update to check for change
             old_weight = nn.dense.weights[0][0]
 
             # Forward & Backward Pass
-            prediction = nn.forward(image)
+            prediction = nn.forward(augmented_image)
             loss = huber_loss(label, prediction)
             total_loss += loss
             
@@ -95,6 +132,10 @@ def train() -> None:
                 correct_train += 1
             
             d_loss = huber_loss_derivative(label, prediction)
+
+            # If label is 0, multiply the gradient by w_pos to make the penalty heavier.
+            if label == 0: 
+                d_loss *= w_pos
             nn.backward(d_loss, learning_rate)
 
             # Debug Prints every 100 images

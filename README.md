@@ -432,7 +432,8 @@ for i in range(target_h):
 ### 8.2 The Layer-Based Architecture (Object-Oriented Design)
 To manage the complexity of multi-layer feature extraction, the system was built using an Object-Oriented Programming (OOP) approach. Every component follows a strict "Layer" system, implementing custom `forward()` and `backward()` methods to manage signal flow and gradient updates.
 
-The ConvolutionLayer implementation handles 3D feature maps, allowing the network to process multiple channels deep in the stack. To keep the architecture flexible, the layer uses deferred weight initialization, meaning it waits until the first forward pass to check the input depth before it actually sets up the weights. This makes it easier to switch between things like 1-channel images and 16-channel feature maps. To stop the "vanishing gradient" problem where the model stops learning, weights are set using He (Kaiming) initialization. This follows a normal distribution scaled by the "fan-in," or the number of input connections:
+**Convolution layers**  
+The `ConvolutionLayer` implementation handles 3D feature maps, allowing the network to process multiple channels deep in the stack. To keep the architecture flexible, the layer uses deferred weight initialization, meaning it waits until the first forward pass to check the input depth before it actually sets up the weights. This makes it easier to switch between things like 1-channel images and 16-channel feature maps. To stop the "vanishing gradient" problem where the model stops learning, weights are set using He (Kaiming) initialization. This follows a normal distribution scaled by the "fan-in," or the number of input connections:
 
 $$
 W \sim \mathcal{N}\left(0, \sqrt{\frac{2}{\text{fan-in}}}\right)
@@ -467,6 +468,56 @@ for f in range(self.num_filters):            # Loop over each filter
             
             output[i][j][f] = summ + self.biases[f]
 return output
+```
+
+**Max-Pooling**  
+The `MaxPoolingLayer` provides spatial downsampling, which shrinks the $64 \times 64$ input into a more manageable feature set. During the forward pass, a $2 \times 2$ window slides across the input with a stride of 2, picking only the maximum intensity value from each section. This process is useful because it helps the model recognize patterns even if there are small shifts or rotations in the X-ray image. Because pooling doesn't have weights, it isn't "trained" like a normal layer, so it uses a method called "Argmax" gradient routing for the backpropagation. During the `backward()` pass, the layer finds the exact coordinate where the maximum value was located during the forward pass and sends the entire gradient to that specific pixel. This effectively tells the model which specific feature was the most important one to focus on.
+
+```python
+for f in range(f_count):
+    for i in range(out_h):
+        for j in range(out_w):
+
+            # Identify the maximum value within the pooling window
+            max_val: float = -float('inf')
+            for m in range(self.size):
+                for n in range(self.size):
+
+                    # Calculate the input coordinate based on stride (i * size)
+                    val: float = input_3d[i * self.size + m][j * self.size + n][f]
+                    if val > max_val:
+                        max_val = val
+
+            # Resulting shape is [row][col][filter] (Channel-Last format)
+            output[i][j][f] = max_val
+return output
+```
+
+```python
+for f in range(f_count):
+    for i in range(out_h):
+        for j in range(out_w):
+
+            # Re-identify the maximum position (Argmax) to route the error
+            max_val: float = -float('inf')
+            max_pos: Tuple[int, int] = (0, 0)
+            
+            # Scan the local size x size neighborhood in the cached forward input
+            for m in range(self.size):
+                for n in range(self.size):
+
+                    # Calculate the absolute input coordinate using the stride (i * size)
+                    curr_val: float = self.last_input[i * self.size + m][j * self.size + n][f]
+                    if curr_val > max_val:
+                        max_val = curr_val
+
+                        # Store the specific row and column of the winner
+                        max_pos = (i * self.size + m, j * self.size + n)
+            
+            # Route the gradient: Only the winner receives the incoming error signal
+            d_L_d_input[max_pos[0]][max_pos[1]][f] = d_L_d_out[i][j][f]
+
+return d_L_d_input
 ```
 
 ## References

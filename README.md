@@ -535,6 +535,22 @@ def sigmoid(z: float) -> float:
     return 1 / (1 + math.exp(-z))
 ```
 
+**Loss Calculation (`loss.py`)**  
+A major turning point for the project’s stability was the move from Binary Cross Entropy (BCE) to Huber Loss. In the early models (v1.0 through v4.0), the training process was extremely sensitive. While BCE is the standard for binary classification, its logarithmic nature means that if the model makes a highly confident but incorrect prediction, the resulting gradient can become massive, sometimes approaching infinity. This led to "exploding gradients" that would suddenly over-correct the weights and ruin the progress made in previous epochs. To prevent this, the initial learning rates had extremely low ($0.00001$).
+
+The implementation of Huber Loss in loss.py fixed this by changing how the model reacts to these large errors. The formula acts as a piecewise function that shifts its behavior based on the size of the error ($a = y_{true} - y_{pred}$):
+
+$$
+L_{\delta}(a) =\begin{cases}\frac{1}{2}a^2 & \text{for } |a| \le \delta \\delta(|a| - \frac{1}{2}\delta) & \text{otherwise}\end{cases}
+$$
+
+By using this logic, the loss function acts like a stable quadratic function for small mistakes (where $|a| \le 1.0$), but for any error larger than the threshold ($\delta = 1.0$), it switches to a linear calculation. This effectively "caps" the gradient, ensuring the model no longer overreacts to outliers or confidently wrong predictions. This shift was the primary reason the learning rate could eventually be increased to $0.0025$ (250x increase) without the network becoming unstable. This allowed the model to converge much faster while staying robust against the natural noise found in medical chest scans.
+
+
+
+
+
+
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 

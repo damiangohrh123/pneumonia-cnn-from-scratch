@@ -429,6 +429,46 @@ for i in range(target_h):
         resized[i][j] = image[source_i][source_j] / 255.0
 ```
 
+### 8.2 The Layer-Based Architecture (Object-Oriented Design)
+To manage the complexity of multi-layer feature extraction, the system was built using an Object-Oriented Programming (OOP) approach. Every component follows a strict "Layer" system, implementing custom `forward()` and `backward()` methods to manage signal flow and gradient updates.
+
+The ConvolutionLayer implementation handles 3D feature maps, allowing the network to process multiple channels deep in the stack. To keep the architecture flexible, the layer uses deferred weight initialization, meaning it waits until the first forward pass to check the input depth before it actually sets up the weights. This makes it easier to switch between things like 1-channel images and 16-channel feature maps. To stop the "vanishing gradient" problem where the model stops learning, weights are set using He (Kaiming) initialization. This follows a normal distribution scaled by the "fan-in," or the number of input connections:
+
+$$
+W \sim \mathcal{N}\left(0, \sqrt{\frac{2}{\text{fan-in}}}\right)
+$$
+
+A "safety factor" of $0.1$ was also added to the scale to make sure the activations don't saturate right at the start. Finally, the 3D scan logic in the forward pass uses a six-layer nested loop to slide the filters across the height, width, and depth of the input.
+
+```python
+def _init_filters(self, depth: int):
+    he_scale = (2.0 / (self.k * self.k * depth)) ** 0.5
+    tuned_scale = he_scale * 0.1
+
+    self.filters = [
+        [[[random.gauss(0, tuned_scale) for _ in range(self.k)]  # Dimension 4: kernel row
+            for _ in range(self.k)]                              # Dimension 3: kernel column                                               
+            for _ in range(depth)]                               # Dimension 2: input channels        
+            for _ in range(self.num_filters)                     # Dimension 1: number of filters
+    ]
+```
+
+Finally, the 3D scan logic in the forward pass uses a six-layer nested loop to slide the filters across the height, width, and depth of the input.
+
+```python
+for f in range(self.num_filters):            # Loop over each filter
+    for i in range(out_h):                   # Loop over output height
+        for j in range(out_w):               # Loop over output width
+            summ = 0.0
+            for c in range(in_d):            # Loop over input channels
+                for m in range(self.k):      # Loop over kernel height
+                    for n in range(self.k):  # Loop over kernel width
+                        summ += input_data[i + m][j + n][c] * self.filters[f][c][m][n]
+            
+            output[i][j][f] = summ + self.biases[f]
+return output
+```
+
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 

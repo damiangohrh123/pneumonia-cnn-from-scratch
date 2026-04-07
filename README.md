@@ -546,10 +546,23 @@ $$
 
 By using this logic, the loss function acts like a stable quadratic function for small mistakes (where $|a| \le 1.0$), but for any error larger than the threshold ($\delta = 1.0$), it switches to a linear calculation. This effectively "caps" the gradient, ensuring the model no longer overreacts to outliers or confidently wrong predictions. This shift was the primary reason the learning rate could eventually be increased to $0.0025$ (250x increase) without the network becoming unstable. This allowed the model to converge much faster while staying robust against the natural noise found in medical chest scans.
 
+### 8.3 Incremental Model Evolution and Results
+The development of the CNN was an iterative process. Each version was designed to solve a specific problem identified in the previous run, such as exploding gradients, overfitting, or dataset imbalance. The following table summarizes the performance of the six primary iterations:
 
+```
++---------+----------------+--------------------------------+-----------+----------+----------+
+| Version | Architecture   | Key Change                     | Train Acc | Test Acc | Avg Loss |
++---------+----------------+--------------------------------+-----------+----------+----------+
+| v1.0    | 1-Conv (8 fil) | Baseline Implementation        | 91.99%    | 75.16%   | 2.3745   |
+| v2.0    | 1-Conv (8 fil) | L2 Regularization & Shuffling  | 91.07%    | 79.49%   | 3.4004   |
+| v3.0    | 1-Conv (8 fil) | High L2 (0.005)- Oversmoothed  | 92.06%    | 67.79%   | 1.1001   |
+| v4.0    | 1-Conv (16 fil)| Doubled Filter Capacity        | 91.56%    | 83.65%   | 6.1741   |
+| v5.0    | 2-Conv (Deep)  | Huber Loss & 0.0025 LR         | 97.87%    | 80.45%   | 0.0785   |
+| v6.0    | 2-Conv (Deep)  | Augmentation & Class Weights   | 92.73%    | 86.22%   | 0.1241   |
++---------+----------------+--------------------------------+-----------+----------+----------+
+```
 
-
-
+The project began with v1.0, which proved that the manual 3D convolution math was working, but the 16% gap between training and testing showed heavy overfitting. To fix this, v2.0 introduced L2 regularization and data shuffling. Shuffling the JSON files before each epoch was a small change that made a big difference, helping the model discover more general features and boosting test accuracy by over 4%. However, v3.0 showed that too much regularization can be a bad thing; the high L2 penalty likely "oversmoothed" the weights, causing the model to miss the fine details of the X-rays and dropping accuracy significantly. A major breakthrough occurred between v4.0 and v5.0. While doubling the filters in v4.0 helped reach 83% accuracy, the model was still unstable and required a very low learning rate. By switching to a deeper 2-Convolution architecture and replacing the original loss function with Huber Loss, the gradients finally stabilized. This allowed the learning rate to be increased from $0.000008$ to $0.0025$. Even though v5.0 had a very low loss, it started to "memorize" the training data again because the deeper architecture was too powerful for the small dataset. The final version, v6.0, focused on fixing this final bottleneck through data strategy rather than just more layers. By adding horizontal flips and random 2-pixel shifts (Data Augmentation), the model was forced to learn what pneumonia actually looks like regardless of where it appeared in the image. Additionally, a class weight of $2.0$ was applied to the "Normal" images to counteract the 3:1 imbalance in the dataset. These final tweaks successfully closed the overfitting gap and resulted in a peak test accuracy of 86.22%, the highest achieved in the project.
 
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.

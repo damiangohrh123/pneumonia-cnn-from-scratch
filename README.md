@@ -380,6 +380,55 @@ This normalization step ensures that the input values are small and bounded, whi
 ### 7.3 Data Splitting: Training vs. Testing
 To truly know if the model is learning or just memorizing, the dataset is split into two distinct groups: the Training Set and the Test Set. The network only ever "sees" the training set during the backpropagation phase. The test set is kept completely hidden until the training is finished. By evaluating the model on these "unseen" images, we can calculate a true accuracy score and ensure that the model can actually diagnose new patients it has never encountered before.
 
+## 8. Implementation
+This section details the construction of the CNN framework from scratch.
+
+### 8.1 Data Preprocessing and Augmentation Pipeline
+A custom preprocessing pipeline was engineered to transform raw, heterogeneous medical imaging data into a format suitable for a manual, list-based CNN architecture. The raw X-ray dataset, originally composed of JPEG format with inconsistent dimensions and color channels, underwent a streamlined transformation process within `preprocess_data.py`. To minimize computational overhead and ensure the model prioritized patterns over irrelevant color artifacts, every image was converted to an 8-bit grayscale ('L' mode). This 'L-mode' conversion collapsed the input depth to a single channel, which significantly reduced the parameters required for the initial convolutional layer to learn. Following this, the images were resized to a standardized $64 \times 64$ resolution. This size is small enough to keep the training process fast and manageable using standard Python lists, while still preserving enough details needed to spot pneumonia.
+
+Working without high-level tools like PyTorch’s `DataLoader` makes it hard to handle the constant back-and-forth of reading and decoding image files from the disk. To make the training loop more efficient, a "JSON-first" strategy was used instead. The `process_directory` function turns every image into a nested Python list ahead of time so the program doesn't have to decode JPEGs over and over during every epoch.
+
+```python
+with Image.open(os.path.join(source_dir, filename)) as img:
+    img = img.convert('L')
+    
+    # 2. Resize to 64x64
+    img = img.resize((size, size))
+    
+    # 3. Convert to a Python List of Lists
+    pixels: List[List[int]] = []
+    for y in range(size):
+        row = [img.getpixel((x, y)) for x in range(size)]
+        pixels.append(row)
+    
+    # 4. Save as JSON
+    # rsplt ensures we handle filenames with multiple dots correctly
+    json_name = filename.rsplit('.', 1)[0] + ".json"
+    with open(os.path.join(target_dir, json_name), 'w') as f:
+        json.dump(pixels, f)
+```
+
+This approach ensures data integrity because every training sample is turned into an identical $64 \times 64$ grid beforehand. This prevents "shape mismatch" errors that usually happen during the convolution process. It also makes the I/O more efficient since reading a JSON file into a Python list is a native operation. This significantly lowers the extra work the computer has to do for each image during the forward pass.
+
+The final step of the preparation pipeline involves the `load_processed_data` function. This utility maps the directory structure to binary labels:
+* `data/processed/train/normal` $\rightarrow$ **Label 0**
+* `data/processed/train/pneumonia` $\rightarrow$ **Label 1** 
+
+These labeled pairs are returned as a list of tuples (image_data, label), providing the structured input necessary for the Stochastic Gradient Descent (SGD) loop used in the baseline model.
+
+While the JSON files store raw pixel intensities $(0–255)$, the model requires floating-point inputs for mathematical stability. This transition is handled by the `ImageProcessor` class during the data loading phase. By implementing a $1/255$ normalization transform, the $64 \times 64$ grids are converted into a normalized range of $[0.0, 1.0]$ before entering the first convolutional layer. By keeping input values small, the weighted sums stay within the "active" regions of the Leaky ReLU and Sigmoid functions, ensuring that gradients do not vanish during the very first epoch of training.
+
+```python
+for i in range(target_h):
+    for j in range(target_w):
+        # Map the target coordinate back to the source coordinate
+        source_i: int = int(i * row_ratio)
+        source_j: int = int(j * col_ratio)
+        
+        # Pixel Normalization (0-255 -> 0.0-1.0)
+        resized[i][j] = image[source_i][source_j] / 255.0
+```
+
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 

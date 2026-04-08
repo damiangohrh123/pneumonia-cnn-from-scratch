@@ -1,4 +1,6 @@
-from typing import List
+import os
+import json
+from typing import List, Tuple
 
 class ImageProcessor:
     """
@@ -55,3 +57,19 @@ class ImageProcessor:
         """
         # Luminance formula
         return int(0.299 * r + 0.587 * g + 0.114 * b)
+
+def load_processed_data(data_type: str) -> List[Tuple[List[List[float]], int]]:
+    dataset: List[Tuple[List[List[float]], int]] = []
+    base_path = f"data/processed/{data_type}"
+    categories = {"normal": 0, "pneumonia": 1} # Ensure case matches your folders!
+    
+    for category, label in categories.items():
+        folder_path = os.path.join(base_path, category)
+        if not os.path.exists(folder_path):
+            continue
+            
+        for filename in os.listdir(folder_path):
+            with open(os.path.join(folder_path, filename), 'r') as f:
+                img_data = json.load(f)
+                dataset.append((img_data, label))
+    return dataset

@@ -2,6 +2,7 @@ import os
 import json
 import random
 from typing import List, Tuple
+from src.utils.data_loader import load_processed_data
 from src.network import Model
 from src.utils.loss import huber_loss, huber_loss_derivative
 
@@ -32,32 +33,6 @@ def augment_image(image_data: List[List[float]]) -> List[List[float]]:
                 new_image[r][c] = current_image[old_r][old_c]
                 
     return new_image
-
-def load_processed_data(data_type: str) -> List[Tuple[List[List[float]], int]]:
-    """
-    Loads the pre-processed JSON images and their labels.
-    
-    Args:
-        data_type: 'train' or 'test'.
-        
-    Returns:
-        A list of tuples containing (image_data, label).
-    """
-    dataset: List[Tuple[List[List[float]], int]] = []
-    base_path = f"data/processed/{data_type}"
-    categories = {"normal": 0, "pneumonia": 1}
-    
-    for category, label in categories.items():
-        folder_path = os.path.join(base_path, category)
-        if not os.path.exists(folder_path):
-            continue
-            
-        for filename in os.listdir(folder_path):
-            with open(os.path.join(folder_path, filename), 'r') as f:
-                img_data = json.load(f)
-                dataset.append((img_data, label))
-                
-    return dataset
 
 def save_model(model: Model, filename: str = "best_pneumonia_model.json") -> None:
     data = {

@@ -604,6 +604,23 @@ In Fig. 9, the model failed to identify an active case of pneumonia. This error 
 
 In Fig. 10, the model incorrectly flagged a healthy lung as infected. This error usually occur when "noise" or artifacts are present. Features such as prominent rib-shadowing, the heart border, or the patient’s scapula can create high-contrast edges that mimic the density of an infection. The model, might occasionally interpret these standard anatomical structures as pathological consolidation.
 
+## 9.4 Reliability and Threshold optimization
+The final phase of the performance analysis involves evaluating the model's mathematical robustness across all possible decision points and justifying the selection of the final classification threshold.
+
+<div align="center">
+    <img src="images/precision_recall_curve.png" width="600">
+    <p align="center"><strong>Fig. 11.</strong> Precision-Recall Curve for CNN v6.0.<p>
+</div>
+
+The Precision-Recall curve in Fig. 11 illustrates the relationship between positive predictive value (Precision) and sensitivity (Recall). Given the class imbalance present in the pneumonia dataset, the PR curve serves as a more stringent metric than a standard ROC curve. The substantial area under the curve (AUC-PR) demonstrates that the architecture maintains high reliability even when the detection threshold is adjusted to capture subtle infections. The continuity and smoothness of the curve indicate that the v6.0 model has successfully mapped a stable feature-representation of the disease pathologies.
+
+<div align="center">
+    <img src="images/threshold_vs_metrics.png" width="600">
+    <p align="center"><strong>Fig. 12.</strong> Impact of Decision Threshold on Clinical Metrics.<p>
+</div>
+
+As displayed in Fig. 12, the model’s performance metrics intersect near a threshold of 0.78. However, a classification threshold of 0.5 was intentionally maintained for this study. This choice prioritizes Sensitivity (Recall) to minimize the occurrence of False Negatives—cases where pneumonia might otherwise go undetected. While this results in a slightly higher rate of False Positives, this trade-off is considered optimal for a screening tool where the primary objective is the early and thorough identification of potentially life-threatening infections.
+
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
 

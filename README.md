@@ -572,7 +572,7 @@ To achieve a comprehensive evaluation of the diagnostic model, a Confusion Matri
 
 <div align="center">
     <img src="images/confusion_matrix.png" width="600">
-    <p align="center"><strong>Fig. 7.</strong>Confusion Matrix for Model v6.0 on Test Dataset (n=624).<p>
+    <p align="center"><strong>Fig. 7.</strong> Confusion Matrix for Model v6.0 on Test Dataset (n=624).<p>
 </div>
 
 The final evaluation on the test set ($n = 624$) produced a symmetric raw error count of 43 False Positives and 43 False Negatives. However, because the test set is imbalanced (390 Pneumonia images and 234 Normal images), raw numbers alone can be deceptive. It is critical to evaluate the error ratios within each specific class to understand the model's true diagnostic behavior. The model achieved a Recall (True Positive Rate) of 88.97% and a Specificity (True Negative Rate) of 81.62%. When examining the inverse of these figures, the Miss Rate (False Negative Rate) is 11.03%, while the Fall-out (False Positive Rate) is 18.38%. Additionally, the model maintained a Precision (Positive Predictive Value) of 88.97%, resulting in a balanced F1-Score of 0.8897. While the raw error counts are identical, the model is more accurate at identifying Pneumonia than it is at identifying healthy lungs. From a clinical standpoint, this is an intentional and positive outcome. By applying a class weight of $w_{pos} = 2.0$, the model was more cautious about missing infections. The trade-off was a slightly elevated False Positive Rate. However, in a medical screening environment, it is generally considered safer to over-diagnose, which leads to a professional follow-up, than to under-diagnose and potentially send a sick patient home without treatment. Ultimately, the model has not reached a "perfect" mathematical equilibrium, but rather a clinically optimized bias. It successfully prioritizes the detection of the more dangerous condition while maintaining a respectable accuracy of over 81% on healthy scans.
@@ -582,10 +582,27 @@ To understand the model's learning behavior, the relationship between the optimi
 
 <div align="center">
     <img src="images/accuracy_loss_plot.png" width="800">
-    <p align="center"><strong>Fig. 8. Accuracy and loss plot over 11 epochs</strong>.<p>
+    <p align="center"><strong>Fig. 8.</strong> Accuracy and loss plot over 11 epochs.<p>
 </div>
 
 The model's performance on the unseen test set, as tracked in Fig. 8, demonstrates rapid learning and subsequent stability. During the initial phase of training, the model showed significant gains, with accuracy climbing from 62.1% to over 84% within the first four epochs. Peak performance was achieved at Epoch 6, reaching a high of 86.22%, as marked by the dashed red line in the data plot. The accuracy remained stable, with the absence of significant "dips" in test performance indicates that the Data Augmentation strategy (image flips and translations) successfully mitigated overfitting. This allowed the model to maintain its generalization capabilities even as the training loss continued to trend slightly lower. The decision to stop training after Epoch 11 is justified by the plateau observed from Epoch 6 through Epoch 11. While the training loss continues to decrease marginally, the test accuracy remains stagnant. This is the ideal point for Early Stopping, as further training would likely only lead to "memorization" of noise in the training data (overfitting) rather than improved generalization.
+
+## 9.3 Qualitative Error Analysis
+While the quantitative metrics provide a high-level view of performance, analyzing individual misclassifications offers a deeper understanding of the model's limitations. By examining the False Positives (FP) and False Negatives (FN) from the test set, we can identify specific visual patterns that challenge the CNN v6.0 architecture.
+
+<div align="center">
+    <img src="images/error_517_FN.png" width="500">
+    <p align="center"><strong>Fig. 9.</strong> Sample False Negative - Pneumonia classified as Normal.<p>
+</div>
+
+In Fig. 9, the model failed to identify an active case of pneumonia. This error typically occurs in images where the consolidation (the white fluid patches) is highly localized or has very low contrast against the lung background. Because our custom CNN utilizes two convolutional layers with max-pooling, subtle textural "gradients" may be compressed or lost during the downsampling process.
+
+<div align="center">
+    <img src="images/error_10_FP.png" width="500">
+    <p align="center"><strong>Fig. 10.</strong> Sample False Positive - Normal classified as Pneumonia<p>
+</div>
+
+In Fig. 10, the model incorrectly flagged a healthy lung as infected. This error usually occur when "noise" or artifacts are present. Features such as prominent rib-shadowing, the heart border, or the patient’s scapula can create high-contrast edges that mimic the density of an infection. The model, might occasionally interpret these standard anatomical structures as pathological consolidation.
 
 ## References
 [1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.

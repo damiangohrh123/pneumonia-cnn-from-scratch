@@ -1,5 +1,10 @@
 # Convolutional Neural Network From Scratch (Pneumonia)
 
+<div align="center">
+    <img src="images/x-ray_lungs.png" width="800">
+    <p align="center"><strong>Fig. 1.</strong>  Illustrative Examples of Chest X-Rays in Patients with Pneumonia. [1]<p>
+</div>
+
 ## 1. Introduction
 This project focuses on building a Convolutional Neural Network (CNN) framework from scratch using only Python and NumPy. While standard neural networks are good for simple tasks, they struggle with images because they treat every pixel as an independent piece of data. This project aims to show how a CNN preserves the spatial structure of an image, showing how it understands how pixels relate to their neighbors and how it identify patterns like pneumonia in chest X-rays.
 
@@ -24,17 +29,17 @@ A Convolutional Neural Network (CNN) is structured as a series of specialized la
 The architecture begins with the Input Layer, which stores the raw pixel data. In a CNN, this is usually represented as a 3D tensor where the dimensions correspond to the height, width, and the number of color channels (such as 1 for grayscale or 3 for RGB). Because the network needs to maintain the geometric relationship between pixels, this layer does not flatten the data. Instead, it preserves the grid structure so that the following layers can look for patterns in specific areas of the image.
 
 ### 2.2 Feature Extraction through Convolutional Layers
-The Convolutional Layer is the primary engine of the network. It uses a set of learnable filters, also known as kernels, which are small matrices that slide across the input data. At every position, the filter performs a mathematical operation to see how well its own pattern matches the pixels in that specific spot. This process, illustrated in Fig. 1, allows the network to create "feature maps" that highlight where certain shapes, like edges or textures, are located. Because the same filter is used for the entire image, the network can recognize a pattern no matter where it appears, which makes it much more efficient than a standard fully connected layer.
+The Convolutional Layer is the primary engine of the network. It uses a set of learnable filters, also known as kernels, which are small matrices that slide across the input data. At every position, the filter performs a mathematical operation to see how well its own pattern matches the pixels in that specific spot. This process, illustrated in Fig. 2, allows the network to create "feature maps" that highlight where certain shapes, like edges or textures, are located. Because the same filter is used for the entire image, the network can recognize a pattern no matter where it appears, which makes it much more efficient than a standard fully connected layer.
 
 ### 2.3 Dimensionality Reduction via Pooling
-To prevent the network from becoming too computationally heavy and to make it more reliable, Pooling Layers are placed between convolutional stages. These layers serve to "downsample" the feature maps, effectively shrinking the height and width of the data. Max-Pooling is the most common version, where the layer looks at a small window of pixels and only passes the highest value to the next stage, as demonstrated in Fig. 2. This ignores the exact location of a feature in favor of its general presence, which helps the network handle images where the subject might be slightly tilted or shifted.
+To prevent the network from becoming too computationally heavy and to make it more reliable, Pooling Layers are placed between convolutional stages. These layers serve to "downsample" the feature maps, effectively shrinking the height and width of the data. Max-Pooling is the most common version, where the layer looks at a small window of pixels and only passes the highest value to the next stage, as demonstrated in Fig. 3. This ignores the exact location of a feature in favor of its general presence, which helps the network handle images where the subject might be slightly tilted or shifted.
 
 ### 2.4 The Fully Connected Head and Classification
 Once the convolutional and pooling layers have extracted the most important visual information, the data must be converted into a format that can be used for a final decision. The 3D feature maps are "flattened" into a 1D vector and passed into a Fully Connected Layer. This part of the network acts like a standard classifier, looking at the entire collection of detected features to determine which category the image belongs to. In a binary system, a single output neuron with an activation function like Sigmoid is used to calculate the final probability of the target class.
 
 <div align="center">
     <img src="images/system_architecture.png" width="800">
-    <p align="center"><strong>Fig. 1.</strong> Complete CNN architecture showing the transition from 3D feature maps to a flattened 1D vector for classification. [1]<p>
+    <p align="center"><strong>Fig. 2.</strong> Complete CNN architecture showing the transition from 3D feature maps to a flattened 1D vector for classification. [2]<p>
 </div>
 
 ## 3. Forward Propagation
@@ -51,17 +56,17 @@ To understand how the computer actually processes the image, the terms can be br
 
 <div align="center">
     <img src="images/sliding_window.png" width="700">
-    <p align="center"><strong>Fig. 2.</strong> The kernel slides across the input image, multiplying each pixel in the 3×3 patch by its corresponding weight​. The nine products are summed and a bias is added, producing one value in the feature map. Here, the products sum to 1 and a bias of −2 yields a final activation of −1. [2]<p>
+    <p align="center"><strong>Fig. 3.</strong> The kernel slides across the input image, multiplying each pixel in the 3×3 patch by its corresponding weight​. The nine products are summed and a bias is added, producing one value in the feature map. Here, the products sum to 1 and a bias of −2 yields a final activation of −1. [3]<p>
 </div>
 
-**The Bias ($b$):** A learned scalar constant $b$ is added to the weighted sum. This shifts the activation threshold, allowing the network to adjust how sensitive a filter is to a given feature independently of the input pixel values. In Fig. 2, a bias of $b = -2$ is added to the sum of $1$, yielding a final activation of $z_{i,j} = -1$.
+**The Bias ($b$):** A learned scalar constant $b$ is added to the weighted sum. This shifts the activation threshold, allowing the network to adjust how sensitive a filter is to a given feature independently of the input pixel values. In Fig. 3, a bias of $b = -2$ is added to the sum of $1$, yielding a final activation of $z_{i,j} = -1$.
 
 ### 3.2 Non-Linearity through ReLU
 Once the feature maps are generated, they are passed through a Rectified Linear Unit (ReLU) activation function. The primary purpose of this step is to introduce non-linearity, which allows the network to learn relationships that aren't just simple linear combinations of pixels. The ReLU function is defined as $f(z) = \max(0, z)$, meaning it allows positive signals to pass through unchanged while effectively "turning off" any negative values. This helps the network focus on the most relevant features and prevents the mathematical instability that can occur in deeper networks.
 
 <div align="center">
     <img src="images/feature_map_relu.png" width="700">
-    <p align="center"><strong>Fig. 3.</strong> Feature map passing through ReLU activation function. [2]<p>
+    <p align="center"><strong>Fig. 4.</strong> Feature map passing through ReLU activation function. [3]<p>
 </div>
 
 ### 3.3 Spatial Downsampling with Max Pooling
@@ -69,7 +74,7 @@ Following activation, the feature maps undergo Max Pooling to reduce their spati
 
 <div align="center">
     <img src="images/max_pooling.png" width="500">
-    <p align="center"><strong>Fig. 4.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size. [2]<p>
+    <p align="center"><strong>Fig. 5.</strong> Max pooling: each 2×2 region collapses to its single highest value, halving the map size. [3]<p>
 </div>
 
 ### 3.4 Flattening and the Sigmoid Prediction
@@ -295,7 +300,7 @@ $$\begin{aligned}
 
 <div align="center">
     <img src="images/kernel_sliding_over_e.jpeg" width="700">
-    <p align="center"><strong>Fig. 5.</strong> As the 2×2 kernel slides to each of the four valid positions over the 3×3 input, pixel e (centre) is covered by a different kernel weight at each position. During backpropagation, the error at each output must therefore flow back to pixel e through the exact kernel weight that originally produced it. <p>
+    <p align="center"><strong>Fig. 6.</strong> As the 2×2 kernel slides to each of the four valid positions over the 3×3 input, pixel e (centre) is covered by a different kernel weight at each position. During backpropagation, the error at each output must therefore flow back to pixel e through the exact kernel weight that originally produced it. <p>
 </div>
 
 The total error flowing back to pixel $e$ is therefore calculated by summing the gradients from each output $z_{i,j}$ that $e$ contributed to, weighted by their respective kernel weights:
@@ -319,7 +324,7 @@ where the shifted indices $(i-m, j-n)$ are the mathematical expression of the ke
 
 <div align="center">
     <img src="images/flipped_kernel.png" width="500">
-    <p align="center"><strong>Fig. 6. </strong>Flipping the kernel 180° reverses the order of the weights, which is mathematically equivalent to changing the convolution indices from +(m, n) to -(m, n).<p>
+    <p align="center"><strong>Fig. 7. </strong>Flipping the kernel 180° reverses the order of the weights, which is mathematically equivalent to changing the convolution indices from +(m, n) to -(m, n).<p>
 </div>
 
 ## 6. Training & Optimization
@@ -573,54 +578,54 @@ To achieve a comprehensive evaluation of the diagnostic model, a Confusion Matri
 
 <div align="center">
     <img src="images/confusion_matrix.png" width="600">
-    <p align="center"><strong>Fig. 7.</strong> Confusion Matrix for Model v6.0 on Test Dataset (n=624).<p>
+    <p align="center"><strong>Fig. 8.</strong> Confusion Matrix for Model v6.0 on Test Dataset (n=624).<p>
 </div>
 
 The final evaluation on the test set ($n = 624$) produced a symmetric raw error count of 43 False Positives and 43 False Negatives. However, because the test set is imbalanced (390 Pneumonia images and 234 Normal images), raw numbers alone can be deceptive. It is critical to evaluate the error ratios within each specific class to understand the model's true diagnostic behavior. The model achieved a Recall (True Positive Rate) of 88.97% and a Specificity (True Negative Rate) of 81.62%. When examining the inverse of these figures, the Miss Rate (False Negative Rate) is 11.03%, while the Fall-out (False Positive Rate) is 18.38%. Additionally, the model maintained a Precision (Positive Predictive Value) of 88.97%, resulting in a balanced F1-Score of 0.8897. While the raw error counts are identical, the model is more accurate at identifying Pneumonia than it is at identifying healthy lungs. From a clinical standpoint, this is an intentional and positive outcome. By applying a class weight of $w_{pos} = 2.0$, the model was more cautious about missing infections. The trade-off was a slightly elevated False Positive Rate. However, in a medical screening environment, it is generally considered safer to over-diagnose, which leads to a professional follow-up, than to under-diagnose and potentially send a sick patient home without treatment. Ultimately, the model has not reached a "perfect" mathematical equilibrium, but rather a clinically optimized bias. It successfully prioritizes the detection of the more dangerous condition while maintaining a respectable accuracy of over 81% on healthy scans.
 
 ### 9.2 Training Dynamics and Convergence Analysis
-To understand the model's learning behavior, the relationship between the optimization of the objective function and the resulting classification accuracy over the 11 epochs is plotted. As seen in Fig. 8, the Avg Training Loss (Huber Loss) shows an exponential decay during the first six epochs. This indicates that the initial kernels in `conv1` and `conv2` quickly identified primary features. By Epoch 6, the loss curve begins to flatten, signaling that the model has entered a refinement phase where it is tuning weights for more subtle textural patterns associated with pneumonia.
+To understand the model's learning behavior, the relationship between the optimization of the objective function and the resulting classification accuracy over the 11 epochs is plotted. As seen in Fig. 9, the Avg Training Loss (Huber Loss) shows an exponential decay during the first six epochs. This indicates that the initial kernels in `conv1` and `conv2` quickly identified primary features. By Epoch 6, the loss curve begins to flatten, signaling that the model has entered a refinement phase where it is tuning weights for more subtle textural patterns associated with pneumonia.
 
 <div align="center">
     <img src="images/accuracy_loss_plot.png" width="800">
-    <p align="center"><strong>Fig. 8.</strong> Accuracy and loss plot over 11 epochs.<p>
+    <p align="center"><strong>Fig. 9.</strong> Accuracy and loss plot over 11 epochs.<p>
 </div>
 
-The model's performance on the unseen test set, as tracked in Fig. 8, demonstrates rapid learning and subsequent stability. During the initial phase of training, the model showed significant gains, with accuracy climbing from 62.1% to over 84% within the first four epochs. Peak performance was achieved at Epoch 6, reaching a high of 86.22%, as marked by the dashed red line in the data plot. The accuracy remained stable, with the absence of significant "dips" in test performance indicates that the Data Augmentation strategy (image flips and translations) successfully mitigated overfitting. This allowed the model to maintain its generalization capabilities even as the training loss continued to trend slightly lower. The decision to stop training after Epoch 11 is justified by the plateau observed from Epoch 6 through Epoch 11. While the training loss continues to decrease marginally, the test accuracy remains stagnant. This is the ideal point for Early Stopping, as further training would likely only lead to "memorization" of noise in the training data (overfitting) rather than improved generalization.
+The model's performance on the unseen test set, as tracked in Fig. 9, demonstrates rapid learning and subsequent stability. During the initial phase of training, the model showed significant gains, with accuracy climbing from 62.1% to over 84% within the first four epochs. Peak performance was achieved at Epoch 6, reaching a high of 86.22%, as marked by the dashed red line in the data plot. The accuracy remained stable, with the absence of significant "dips" in test performance indicates that the Data Augmentation strategy (image flips and translations) successfully mitigated overfitting. This allowed the model to maintain its generalization capabilities even as the training loss continued to trend slightly lower. The decision to stop training after Epoch 11 is justified by the plateau observed from Epoch 6 through Epoch 11. While the training loss continues to decrease marginally, the test accuracy remains stagnant. This is the ideal point for Early Stopping, as further training would likely only lead to "memorization" of noise in the training data (overfitting) rather than improved generalization.
 
 ### 9.3 Qualitative Error Analysis
 While the quantitative metrics provide a high-level view of performance, analyzing individual misclassifications offers a deeper understanding of the model's limitations. By examining the False Positives (FP) and False Negatives (FN) from the test set, we can identify specific visual patterns that challenge the CNN v6.0 architecture.
 
 <div align="center">
     <img src="images/error_517_FN.png" width="500">
-    <p align="center"><strong>Fig. 9.</strong> Sample False Negative - Pneumonia classified as Normal.<p>
+    <p align="center"><strong>Fig. 10.</strong> Sample False Negative - Pneumonia classified as Normal.<p>
 </div>
 
-In Fig. 9, the model failed to identify an active case of pneumonia. This error typically occurs in images where the consolidation (the white fluid patches) is highly localized or has very low contrast against the lung background. Because our custom CNN utilizes two convolutional layers with max-pooling, subtle textural "gradients" may be compressed or lost during the downsampling process.
+In Fig. 10, the model failed to identify an active case of pneumonia. This error typically occurs in images where the consolidation (the white fluid patches) is highly localized or has very low contrast against the lung background. Because our custom CNN utilizes two convolutional layers with max-pooling, subtle textural "gradients" may be compressed or lost during the downsampling process.
 
 <div align="center">
     <img src="images/error_10_FP.png" width="500">
-    <p align="center"><strong>Fig. 10.</strong> Sample False Positive - Normal classified as Pneumonia<p>
+    <p align="center"><strong>Fig. 11.</strong> Sample False Positive - Normal classified as Pneumonia<p>
 </div>
 
-In Fig. 10, the model incorrectly flagged a healthy lung as infected. This error usually occur when "noise" or artifacts are present. Features such as prominent rib-shadowing, the heart border, or the patient’s scapula can create high-contrast edges that mimic the density of an infection. The model, might occasionally interpret these standard anatomical structures as pathological consolidation.
+In Fig. 11, the model incorrectly flagged a healthy lung as infected. This error usually occur when "noise" or artifacts are present. Features such as prominent rib-shadowing, the heart border, or the patient’s scapula can create high-contrast edges that mimic the density of an infection. The model, might occasionally interpret these standard anatomical structures as pathological consolidation.
 
 ### 9.4 Reliability and Threshold optimization
 The final phase of the performance analysis involves evaluating the model's mathematical robustness across all possible decision points and justifying the selection of the final classification threshold.
 
 <div align="center">
     <img src="images/precision_recall_curve.png" width="600">
-    <p align="center"><strong>Fig. 11.</strong> Precision-Recall Curve for CNN v6.0.<p>
+    <p align="center"><strong>Fig. 12.</strong> Precision-Recall Curve for CNN v6.0.<p>
 </div>
 
-The Precision-Recall curve in Fig. 11 illustrates the relationship between positive predictive value (Precision) and sensitivity (Recall). Given the class imbalance present in the pneumonia dataset, the PR curve serves as a more stringent metric than a standard ROC curve. The substantial area under the curve (AUC-PR) demonstrates that the architecture maintains high reliability even when the detection threshold is adjusted to capture subtle infections. The continuity and smoothness of the curve indicate that the v6.0 model has successfully mapped a stable feature-representation of the disease pathologies.
+The Precision-Recall curve in Fig. 12 illustrates the relationship between positive predictive value (Precision) and sensitivity (Recall). Given the class imbalance present in the pneumonia dataset, the PR curve serves as a more stringent metric than a standard ROC curve. The substantial area under the curve (AUC-PR) demonstrates that the architecture maintains high reliability even when the detection threshold is adjusted to capture subtle infections. The continuity and smoothness of the curve indicate that the v6.0 model has successfully mapped a stable feature-representation of the disease pathologies.
 
 <div align="center">
     <img src="images/threshold_vs_metrics.png" width="600">
-    <p align="center"><strong>Fig. 12.</strong> Impact of Decision Threshold on Clinical Metrics.<p>
+    <p align="center"><strong>Fig. 13.</strong> Impact of Decision Threshold on Clinical Metrics.<p>
 </div>
 
-As displayed in Fig. 12, the model’s performance metrics intersect near a threshold of 0.78. However, a classification threshold of 0.5 was intentionally maintained for this study. This choice prioritizes Sensitivity (Recall) to minimize the occurrence of False Negatives—cases where pneumonia might otherwise go undetected. While this results in a slightly higher rate of False Positives, this trade-off is considered optimal for a screening tool where the primary objective is the early and thorough identification of potentially life-threatening infections.
+As displayed in Fig. 13, the model’s performance metrics intersect near a threshold of 0.78. However, a classification threshold of 0.5 was intentionally maintained for this study. This choice prioritizes Sensitivity (Recall) to minimize the occurrence of False Negatives—cases where pneumonia might otherwise go undetected. While this results in a slightly higher rate of False Positives, this trade-off is considered optimal for a screening tool where the primary objective is the early and thorough identification of potentially life-threatening infections.
 
 ## 10. Conclusion
 This project successfully demonstrated the development of a Convolutional Neural Network from scratch. Over the course of multiple architectural iterations, culminating in version 6.0, the model achieved a peak test accuracy of 86.22%. Through the implementation of a weighted Huber loss function ($w_{pos} = 2.0$) and strategic data augmentation (horizontal flips and translations), the system was optimized for clinical sensitivity, ensuring a high recall rate for pneumonia detection in pediatric chest X-rays. The analysis of training dynamics and error cases indicates that while the model is highly effective at identifying dense consolidations, it remains limited by its shallow depth and the resolution of the processed input. The qualitative error analysis in Section 9.3 highlights that anatomical shadows and low-contrast textures are the primary drivers of misclassification. However, the stability of the Precision-Recall curve proves that a from-scratch implementation can achieve reliable diagnostic performance without the use of high-level deep learning libraries or pre-trained weights.
@@ -628,8 +633,10 @@ This project successfully demonstrated the development of a Convolutional Neural
 While the current results are promising, several avenues for future improvement have been identified to enhance both performance and efficiency. By transitioning from a two-layer CNN to a deeper architecture, such as a ResNet-inspired residual structure, the model could better extract high-level hierarchical features. Furthermore, increasing the input resolution beyond current preprocessing constraints would likely reduce False Negatives caused by subtle, small-scale opacities. Beyond structural changes, migrating the training pipeline from a CPU-based python implementation to a GPU-accelerated framework like PyTorch or TensorFlow would drastically reduce training times from 20 hours to mere minutes, facilitating more rapid hyperparameter grid searches. Finally, external validation using diverse datasets from various clinical environments is necessary to ensure the model's generalizability across different X-ray hardware and patient demographics.
 
 ## References
-[1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, June 1, 2022. [Online]. Available: https://medium.com/@draj0718/convolutional-neural-networks-cnn-architectures-explained-716fb197b243.
+[1] D. S. Kermany, M. Goldbaum, W. Cai, et al., "Identifying Medical Diagnoses and Treatable Diseases by Image-Based Deep Learning," Cell, vol. 172, no. 5, pp. 1122–1131, Feb. 2018, doi: 10.1016/j.cell.2018.02.010.
 
-[2] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Mar. 8, 2021. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.
+[2] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, June 1, 2022. [Online]. Available: https://medium.com/@draj0718/convolutional-neural-networks-cnn-architectures-explained-716fb197b243.
 
-[3] P. Mooney, "Chest X-Ray Images (Pneumonia)," Kaggle, 2018. [Online]. Available: https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia.
+[3] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Mar. 8, 2021. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.
+
+[4] P. Mooney, "Chest X-Ray Images (Pneumonia)," Kaggle, 2018. [Online]. Available: https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia.

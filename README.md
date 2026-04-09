@@ -627,6 +627,8 @@ This project successfully demonstrated the development of a Convolutional Neural
 While the current results are promising, several avenues for future improvement have been identified to enhance both performance and efficiency. By transitioning from a two-layer CNN to a deeper architecture, such as a ResNet-inspired residual structure, the model could better extract high-level hierarchical features. Furthermore, increasing the input resolution beyond current preprocessing constraints would likely reduce False Negatives caused by subtle, small-scale opacities. Beyond structural changes, migrating the training pipeline from a CPU-based python implementation to a GPU-accelerated framework like PyTorch or TensorFlow would drastically reduce training times from 20 hours to mere minutes, facilitating more rapid hyperparameter grid searches. Finally, external validation using diverse datasets from various clinical environments is necessary to ensure the model's generalizability across different X-ray hardware and patient demographics.
 
 ## References
-[1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, [Online]. Available: https://owl.purdue.edu/owl/general_writing/grammar/using_articles.html.
+[1] Dharmaraj, "Convolutional Neural Networks (CNN) — Architecture Explained," Medium, June 1, 2022. [Online]. Available: https://medium.com/@draj0718/convolutional-neural-networks-cnn-architectures-explained-716fb197b243.
 
-[2] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Jan. 14, 2020. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.
+[2] J. Starmer, "Neural Networks Part 8: Image Classification with Convolutional Neural Networks (CNNs)," YouTube, Mar. 8, 2021. [Online]. Available: https://www.youtube.com/watch?v=HGwBXDKFk9I.
+
+[3] P. Mooney, "Chest X-Ray Images (Pneumonia)," Kaggle, 2018. [Online]. Available: https://www.kaggle.com/datasets/paultimothymooney/chest-xray-pneumonia.

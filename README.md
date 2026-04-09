@@ -587,7 +587,7 @@ To understand the model's learning behavior, the relationship between the optimi
 
 The model's performance on the unseen test set, as tracked in Fig. 8, demonstrates rapid learning and subsequent stability. During the initial phase of training, the model showed significant gains, with accuracy climbing from 62.1% to over 84% within the first four epochs. Peak performance was achieved at Epoch 6, reaching a high of 86.22%, as marked by the dashed red line in the data plot. The accuracy remained stable, with the absence of significant "dips" in test performance indicates that the Data Augmentation strategy (image flips and translations) successfully mitigated overfitting. This allowed the model to maintain its generalization capabilities even as the training loss continued to trend slightly lower. The decision to stop training after Epoch 11 is justified by the plateau observed from Epoch 6 through Epoch 11. While the training loss continues to decrease marginally, the test accuracy remains stagnant. This is the ideal point for Early Stopping, as further training would likely only lead to "memorization" of noise in the training data (overfitting) rather than improved generalization.
 
-## 9.3 Qualitative Error Analysis
+### 9.3 Qualitative Error Analysis
 While the quantitative metrics provide a high-level view of performance, analyzing individual misclassifications offers a deeper understanding of the model's limitations. By examining the False Positives (FP) and False Negatives (FN) from the test set, we can identify specific visual patterns that challenge the CNN v6.0 architecture.
 
 <div align="center">
@@ -604,7 +604,7 @@ In Fig. 9, the model failed to identify an active case of pneumonia. This error 
 
 In Fig. 10, the model incorrectly flagged a healthy lung as infected. This error usually occur when "noise" or artifacts are present. Features such as prominent rib-shadowing, the heart border, or the patient’s scapula can create high-contrast edges that mimic the density of an infection. The model, might occasionally interpret these standard anatomical structures as pathological consolidation.
 
-## 9.4 Reliability and Threshold optimization
+### 9.4 Reliability and Threshold optimization
 The final phase of the performance analysis involves evaluating the model's mathematical robustness across all possible decision points and justifying the selection of the final classification threshold.
 
 <div align="center">
